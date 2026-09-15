@@ -1,5 +1,6 @@
 package com.handegunaydin.habit_tracker.auth.exception;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -45,6 +46,6 @@ public class AuthExceptionHandler {
     @ExceptionHandler(UserBlockedException.class)
     public ResponseEntity<Map<String, String>> handleUserBlockedException(UserBlockedException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .body(Map.of("error", "user_blocked", "message", messageSource.getMessage(ex.getMessage(),null,LocaleContextHolder.getLocale())));
+                .body(Map.of("error", "user_blocked", "message", messageSource.getMessage(ex.getUserBlockedMsg(),ex.getArgs(),LocaleContextHolder.getLocale())));
     }
 }

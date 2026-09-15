@@ -1,5 +1,8 @@
 package com.handegunaydin.habit_tracker.auth.exception;
 
+import lombok.Getter;
+
+@Getter
 public class UserBlockedException extends RuntimeException{
     private final String userBlockedMsg ;
     private final Object[] args;

@@ -163,6 +163,18 @@
             <artifactId>spring-boot-testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.redis</groupId>
+            <artifactId>testcontainers-redis</artifactId>
+            <version>2.2.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.redis</groupId>
+            <artifactId>testcontainers-redis-common</artifactId>
+            <version>2.2.2</version>
+            <scope>test</scope>
+        </dependency>
 	</dependencies>
 
 	<build>

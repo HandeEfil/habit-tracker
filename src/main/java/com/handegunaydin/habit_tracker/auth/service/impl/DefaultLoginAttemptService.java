@@ -1,11 +1,11 @@
 package com.handegunaydin.habit_tracker.auth.service.impl;
 
-import com.handegunaydin.habit_tracker.auth.dto.UserFailedLoginAttemptEvent;
-import com.handegunaydin.habit_tracker.user.entity.User;
 import com.handegunaydin.habit_tracker.auth.service.LoginAttemptService;
-import com.handegunaydin.habit_tracker.notification.enums.EventNotificationType;
+import com.handegunaydin.habit_tracker.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,37 +13,67 @@ import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DefaultLoginAttemptService implements LoginAttemptService {
     private final StringRedisTemplate stringRedisTemplate;
 
-    private final String ATTEMPT_COUNT_KEY = "login-attempt";
+    private final static String ATTEMPT_COUNT_KEY = "login-attempt";
+    private final static String ACCOUNT_LOCKED_KEY = "lock-duration";
 
     @Value("${habit_tracker.max_failed_login_attempt.count}")
-    private Integer MAX_ATTEMPT;
+    private Integer maxAttempt;
 
-    private final LoginFailedAttemptProducer failedAttemptProducer;
+    @Value("${habit_tracker.account.lock.duration}")
+    private Integer lockDuration;
 
-    @Override
-    public void recordFailedAttempt(User user) {
-        Long attempt = stringRedisTemplate.opsForValue().increment(ATTEMPT_COUNT_KEY);
-        if(attempt != null && attempt.equals(1L)){
-            stringRedisTemplate.expire(ATTEMPT_COUNT_KEY, Duration.ofMinutes(15));
-        }
-        if(MAX_ATTEMPT <= this.getAttemptCount(user.getMail())){
-//            failedAttemptProducer.publishFailedAttempt(new UserFailedLoginAttemptEvent(user.getName(), user.getMail(), user.getNotificationTypes(), EventNotificationType.FAILED_LOGIN));
-            user.setEnabled(false);
-        }
-
-    }
 
     @Override
-    public Integer getAttemptCount(String email) {
-        return Integer.valueOf(stringRedisTemplate.opsForValue().get(ATTEMPT_COUNT_KEY));
+    public long recordFailedAttempt(User user) {
+        try {
+            Long attempt = stringRedisTemplate.opsForValue().increment(ATTEMPT_COUNT_KEY + ":" + user.getMail());
+            if (attempt == null) {
+                return 0L;
+            }
+            if (attempt.equals(1L)) {
+                stringRedisTemplate.expire(ATTEMPT_COUNT_KEY + ":" + user.getMail(), Duration.ofMinutes(15));
+            }
+            if (maxAttempt <= attempt) {
+                // TODO: Trigger kafka event to inform user
+                registerLockForAccount(user.getMail());
+            }
+            return attempt;
+        } catch (RedisConnectionFailureException redisConnectionFailureException) {
+            return 0L;
+
+        }
 
     }
 
     @Override
     public void resetAttempts(String email) {
-        stringRedisTemplate.delete(ATTEMPT_COUNT_KEY);
+        try {
+            stringRedisTemplate.delete(ATTEMPT_COUNT_KEY + ":" + email);
+        } catch (RedisConnectionFailureException redisConnectionFailureException) {
+
+        }
+    }
+
+    @Override
+    public void registerLockForAccount(String email) {
+        try {
+            stringRedisTemplate.opsForValue().set(ACCOUNT_LOCKED_KEY + ":" + email, "locked", Duration.ofMinutes(lockDuration));
+        } catch (RedisConnectionFailureException redisConnectionFailureException) {
+
+        }
+
+    }
+
+    @Override
+    public boolean IsAccountLocked(String email) {
+        try {
+            return stringRedisTemplate.opsForValue().get(ACCOUNT_LOCKED_KEY + ":" + email) != null;
+        } catch (RedisConnectionFailureException redisConnectionFailureException) {
+            return false;
+        }
     }
 }
