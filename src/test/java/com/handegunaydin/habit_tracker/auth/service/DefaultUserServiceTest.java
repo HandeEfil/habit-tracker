@@ -1,0 +1,155 @@
+package com.handegunaydin.habit_tracker.auth.service;
+
+import com.handegunaydin.habit_tracker.auth.dto.UserLoginDTO;
+import com.handegunaydin.habit_tracker.auth.dto.UserLoginResponseDTO;
+import com.handegunaydin.habit_tracker.auth.dto.UserRegisterDTO;
+import com.handegunaydin.habit_tracker.auth.dto.UserRegisterResponseDTO;
+import com.handegunaydin.habit_tracker.auth.exception.EmailAlreadyExistsException;
+import com.handegunaydin.habit_tracker.auth.exception.UserBlockedException;
+import com.handegunaydin.habit_tracker.auth.jwt.JwtService;
+import com.handegunaydin.habit_tracker.auth.mapper.UserMapper;
+import com.handegunaydin.habit_tracker.auth.service.impl.DefaultUserService;
+import com.handegunaydin.habit_tracker.user.entity.User;
+import com.handegunaydin.habit_tracker.user.repository.UserRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDate;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+public class DefaultUserServiceTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private UserMapper userMapper;
+
+    @Mock
+    private JwtService jwtService;
+
+    @InjectMocks
+    private DefaultUserService userService;
+
+    // Register tests
+    @Test
+    void shouldThrowException_whenEmailAlreadyExists() {
+        UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
+                "Test123.",
+                "test@test.com",
+                "5555555555", LocalDate.now().minusYears(18)
+        );
+        when(userRepository.existsByMail("test@test.com")).thenReturn(true);
+
+        assertThrows(EmailAlreadyExistsException.class, () -> {
+            userService.register(userRegisterDTO);
+        });
+
+    }
+
+    @Test
+    void shouldReturnSuccess_whenEmailIsUnique() {
+        UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
+                "Test123.",
+                "test@test.com",
+                "5555555555", LocalDate.now().minusYears(18)
+        );
+        when(userRepository.existsByMail("test@test.com")).thenReturn(false);
+        when(passwordEncoder.encode("Test123.")).thenReturn("hashed_pass");
+        User savedUser = new User();
+        savedUser.setMail("test@test.com");
+        when(userMapper.toEntity(userRegisterDTO)).thenReturn(savedUser);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(userMapper.toResponse(any(User.class))).thenReturn(new UserRegisterResponseDTO("Test",
+                "test@test.com",
+                "5555555555", LocalDate.now().minusYears(18)));
+        assertEquals(new UserRegisterResponseDTO("Test",
+                "test@test.com",
+                "5555555555", LocalDate.now().minusYears(18)), userService.register(userRegisterDTO));
+
+        verify(userRepository, times(1)).existsByMail(any(String.class));
+    }
+
+    @Test
+    void shouldNotCall_whenEmailIsNotUnique() {
+        UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
+                "Test123.",
+                "test@test.com",
+                "5555555555", LocalDate.now().minusYears(18)
+        );
+        when(userRepository.existsByMail("test@test.com")).thenReturn(true);
+        assertThrows(EmailAlreadyExistsException.class, () -> {
+            userService.register(userRegisterDTO);
+        });
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    //login Tests
+
+    @Test
+    void shouldReturnToken_whenCredentialsAreValid() {
+        UserLoginDTO userLoginDTO = new UserLoginDTO(
+                "test@test.com", "Test123.");
+        User user = new User();
+        user.setEnabled(true);
+        user.setEncodedPassword("Test123._hashed");
+        when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(userLoginDTO.password(), "Test123._hashed")).thenReturn(true);
+
+        when(jwtService.generateToken(userLoginDTO.mail())).thenReturn("Test123._generated_token");
+        assertEquals(new UserLoginResponseDTO("test@test.com", "Test123._generated_token"), userService.login(userLoginDTO));
+    }
+
+    @Test
+    void shouldThrowException_whenUserNotFound() {
+        UserLoginDTO userLoginDTO = new UserLoginDTO(
+                "test@test.com", "Test123.");
+        when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.empty());
+        assertThrows(BadCredentialsException.class, () -> {
+            userService.login(userLoginDTO);
+        });
+
+    }
+
+    @Test
+    void shouldThrowException_whenPasswordIsWrong() {
+        UserLoginDTO userLoginDTO = new UserLoginDTO(
+                "test@test.com", "Test123.");
+        User user = new User();
+        user.setEnabled(true);
+        user.setEncodedPassword("Test123._hashed");
+        when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(userLoginDTO.password(), "Test123._hashed")).thenReturn(false);
+        assertThrows(BadCredentialsException.class, () -> {
+            userService.login(userLoginDTO);
+        });
+
+    }
+    @Test
+    void shouldThrowException_whenAccountIsLocked() {
+        UserLoginDTO userLoginDTO = new UserLoginDTO(
+                "test@test.com", "Test123.");
+        User user = new User();
+        user.setEnabled(false);
+        user.setEncodedPassword("Test123._hashed");
+        when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
+        assertThrows(UserBlockedException.class, () -> {
+            userService.login(userLoginDTO);
+        });
+
+    }
+
+}
