@@ -18,7 +18,7 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
     private final StringRedisTemplate stringRedisTemplate;
 
     private final static String ATTEMPT_COUNT_KEY = "login-attempt";
-    private final static String ACCOUNT_LOCKED_KEY = "lock-duration";
+    private final static String ACCOUNT_LOCKED_KEY = "lock-account";
 
     @Value("${habit_tracker.max_failed_login_attempt.count}")
     private Integer maxAttempt;
@@ -30,6 +30,9 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
     @Override
     public long recordFailedAttempt(User user) {
         try {
+            if(this.IsAccountLocked(user.getMail())){
+                return 0L;
+            }
             Long attempt = stringRedisTemplate.opsForValue().increment(ATTEMPT_COUNT_KEY + ":" + user.getMail());
             if (attempt == null) {
                 return 0L;
@@ -59,9 +62,20 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
     }
 
     @Override
+    public void resetLock(String email) {
+        try {
+            stringRedisTemplate.delete(ACCOUNT_LOCKED_KEY + ":" + email);
+        } catch (RedisConnectionFailureException redisConnectionFailureException) {
+
+        }
+    }
+
+    @Override
     public void registerLockForAccount(String email) {
         try {
             stringRedisTemplate.opsForValue().set(ACCOUNT_LOCKED_KEY + ":" + email, "locked", Duration.ofMinutes(lockDuration));
+            this.resetAttempts(email);
+
         } catch (RedisConnectionFailureException redisConnectionFailureException) {
 
         }
