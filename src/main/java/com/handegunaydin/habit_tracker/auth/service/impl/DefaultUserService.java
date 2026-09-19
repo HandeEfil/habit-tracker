@@ -8,6 +8,7 @@ import com.handegunaydin.habit_tracker.auth.exception.EmailAlreadyExistsExceptio
 import com.handegunaydin.habit_tracker.auth.exception.UserBlockedException;
 import com.handegunaydin.habit_tracker.auth.jwt.JwtService;
 import com.handegunaydin.habit_tracker.auth.mapper.UserMapper;
+import com.handegunaydin.habit_tracker.auth.service.AuthService;
 import com.handegunaydin.habit_tracker.auth.service.LoginAttemptService;
 import com.handegunaydin.habit_tracker.auth.service.UserService;
 import com.handegunaydin.habit_tracker.user.entity.User;
@@ -28,6 +29,7 @@ public class DefaultUserService implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginAttemptService loginAttemptService;
+    private final AuthService authService;
 
 
     @Override
@@ -52,7 +54,8 @@ public class DefaultUserService implements UserService {
 
         if (passwordEncoder.matches(user.password(), byEmail.getEncodedPassword())) {
             loginAttemptService.resetAttempts(mail);
-            return new UserLoginResponseDTO(mail, jwtService.generateToken(mail));
+            String token = authService.generateRefreshToken(user.mail());
+            return new UserLoginResponseDTO(mail, jwtService.generateToken(mail),token);
         }
         loginAttemptService.recordFailedAttempt(byEmail);
         throw new BadCredentialsException("invalid.credentials");

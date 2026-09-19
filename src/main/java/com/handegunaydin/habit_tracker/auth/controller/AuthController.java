@@ -1,9 +1,7 @@
 package com.handegunaydin.habit_tracker.auth.controller;
 
-import com.handegunaydin.habit_tracker.auth.dto.UserLoginDTO;
-import com.handegunaydin.habit_tracker.auth.dto.UserLoginResponseDTO;
-import com.handegunaydin.habit_tracker.auth.dto.UserRegisterDTO;
-import com.handegunaydin.habit_tracker.auth.dto.UserRegisterResponseDTO;
+import com.handegunaydin.habit_tracker.auth.dto.*;
+import com.handegunaydin.habit_tracker.auth.service.AuthService;
 import com.handegunaydin.habit_tracker.auth.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,9 +16,11 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "Authentication and authorization endpoints")
 public class AuthController{
     private final UserService userService;
+    private final AuthService authService;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, AuthService authService) {
         this.userService = userService;
+        this.authService = authService;
     }
 
     @Operation(
@@ -29,15 +29,20 @@ public class AuthController{
     )
     @ApiResponse(responseCode = "201", description = "User registered successfully")
     @ApiResponse(responseCode = "400", description = "Invalid registration data")
-    @PostMapping( value = "/register")
+    @PostMapping( "/register")
     public ResponseEntity<UserRegisterResponseDTO> register(@Valid @RequestBody UserRegisterDTO registerRequest){
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.register(registerRequest));
 
     }
 
-    @PostMapping( value = "/login")
+    @PostMapping( "/login")
     public ResponseEntity<UserLoginResponseDTO> login(@RequestBody UserLoginDTO user){
         return ResponseEntity.ok(userService.login(user));
+    }
+
+    @PostMapping(value = "/refresh")
+    public ResponseEntity<TokenPairResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequestDTO requestDTO){
+        return ResponseEntity.ok(authService.refresh(requestDTO.refreshToken()));
     }
 
 }

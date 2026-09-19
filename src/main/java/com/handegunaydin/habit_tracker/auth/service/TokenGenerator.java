@@ -1,0 +1,10 @@
+package com.handegunaydin.habit_tracker.auth.service;
+
+import com.handegunaydin.habit_tracker.auth.entity.RefreshToken;
+
+public interface TokenGenerator {
+    RefreshToken populateHashedToken(String mail, String tokenHash);
+    String getTokenHash(String rawToken);
+    String generateRawToken();
+
+}

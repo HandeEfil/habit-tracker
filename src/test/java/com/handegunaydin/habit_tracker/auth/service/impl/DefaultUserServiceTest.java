@@ -1,4 +1,4 @@
-package com.handegunaydin.habit_tracker.auth.service;
+package com.handegunaydin.habit_tracker.auth.service.impl;
 
 import com.handegunaydin.habit_tracker.auth.dto.UserLoginDTO;
 import com.handegunaydin.habit_tracker.auth.dto.UserLoginResponseDTO;
@@ -8,7 +8,8 @@ import com.handegunaydin.habit_tracker.auth.exception.EmailAlreadyExistsExceptio
 import com.handegunaydin.habit_tracker.auth.exception.UserBlockedException;
 import com.handegunaydin.habit_tracker.auth.jwt.JwtService;
 import com.handegunaydin.habit_tracker.auth.mapper.UserMapper;
-import com.handegunaydin.habit_tracker.auth.service.impl.DefaultUserService;
+import com.handegunaydin.habit_tracker.auth.service.AuthService;
+import com.handegunaydin.habit_tracker.auth.service.LoginAttemptService;
 import com.handegunaydin.habit_tracker.user.entity.User;
 import com.handegunaydin.habit_tracker.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,10 @@ public class DefaultUserServiceTest {
 
     @Mock
     private JwtService jwtService;
+    @Mock
+    private AuthService authService;
+    @Mock
+    private LoginAttemptService loginAttemptService;
 
     @InjectMocks
     private DefaultUserService userService;
@@ -110,7 +115,8 @@ public class DefaultUserServiceTest {
         when(passwordEncoder.matches(userLoginDTO.password(), "Test123._hashed")).thenReturn(true);
 
         when(jwtService.generateToken(userLoginDTO.mail())).thenReturn("Test123._generated_token");
-        assertEquals(new UserLoginResponseDTO("test@test.com", "Test123._generated_token"), userService.login(userLoginDTO));
+        when(authService.generateRefreshToken(userLoginDTO.mail())).thenReturn("Test123._generated_refresh_token");
+        assertEquals(new UserLoginResponseDTO("test@test.com", "Test123._generated_token", "Test123._generated_refresh_token"), userService.login(userLoginDTO));
     }
 
     @Test
@@ -143,9 +149,9 @@ public class DefaultUserServiceTest {
         UserLoginDTO userLoginDTO = new UserLoginDTO(
                 "test@test.com", "Test123.");
         User user = new User();
-        user.setEnabled(false);
         user.setEncodedPassword("Test123._hashed");
         when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
+        when(loginAttemptService.IsAccountLocked(userLoginDTO.mail())).thenReturn(true);
         assertThrows(UserBlockedException.class, () -> {
             userService.login(userLoginDTO);
         });

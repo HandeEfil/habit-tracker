@@ -1,9 +1,8 @@
-package com.handegunaydin.habit_tracker.auth.service;
+package com.handegunaydin.habit_tracker.auth.service.impl;
 
-import com.handegunaydin.habit_tracker.auth.service.impl.DefaultLoginAttemptService;
 import com.handegunaydin.habit_tracker.user.entity.User;
 import com.redis.testcontainers.RedisContainer;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,9 +40,10 @@ public class DefaultLoginAttemptServiceTest {
     }
 
 
-    @AfterEach
+    @BeforeEach
     void setUp() {
-        loginAttemptService.resetAttempts("test@test.com");
+        loginAttemptService.resetAttempts(testUser().getMail());
+        loginAttemptService.resetLock(testUser().getMail());
     }
 
     @Autowired
@@ -88,9 +88,11 @@ public class DefaultLoginAttemptServiceTest {
         assertTrue(loginAttemptService.IsAccountLocked(user.getMail()));
         loginAttemptService.resetAttempts(user.getMail());
         assertTrue(loginAttemptService.IsAccountLocked(user.getMail()));
-
-
+        assertEquals(0, loginAttemptService.recordFailedAttempt(user));
+        loginAttemptService.resetLock(user.getMail());
+        assertEquals(1, loginAttemptService.recordFailedAttempt(user));
     }
+
 
     @Test
     void differentUsers_haveIndependentCounters() {
