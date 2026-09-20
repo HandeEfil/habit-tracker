@@ -57,7 +57,17 @@ public class UserControllerTest {
     void getCurrentUser_shouldReturn403_whenAdminRole() throws Exception {
 
         String token = jwtService.generateToken("test@test.com", List.of(Role.ADMIN));
-        mockMvc.perform(get("/api/admin/users")
+        mockMvc.perform(get("/api/users/test@test.com")
+                .header("Authorization", "Bearer " + token)
+        ).andExpect(status().isForbidden());
+
+    }
+
+    @Test
+    void getUserDetails_shouldReturn403_whenCustomerAccessesAnotherUsersProfile() throws Exception {
+
+        String token = jwtService.generateToken("test123@test.com", List.of(Role.ADMIN));
+        mockMvc.perform(get("/api/users/test@test.com")
                 .header("Authorization", "Bearer " + token)
         ).andExpect(status().isForbidden());
 

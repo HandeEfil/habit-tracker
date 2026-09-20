@@ -15,7 +15,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasRole('CUSTOMER') and @defaultUserSecurityService.isOwner(#id, authentication.name)" )
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileDTO> getUserDetails(@PathVariable String id) {
         return ResponseEntity.ok(userService.getUserDetails(id));
