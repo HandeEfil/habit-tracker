@@ -3,7 +3,6 @@ package com.handegunaydin.habit_tracker.auth.controller;
 import com.handegunaydin.habit_tracker.auth.entity.RefreshToken;
 import com.handegunaydin.habit_tracker.auth.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.auth.service.TokenGenerator;
-import com.handegunaydin.habit_tracker.user.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@SpringBootTest(properties = {
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
+@SpringBootTest
 public class AuthControllerTest {
 
     @Container
@@ -47,8 +44,6 @@ public class AuthControllerTest {
     private TokenGenerator tokenGenerator;
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
-    @Autowired
-    private UserRepository userRepository;
 
     @Value("${habit_tracker.max_failed_login_attempt.count}")
     private int maxFailedLoginAttempts;
@@ -186,8 +181,7 @@ public class AuthControllerTest {
 
     private Optional<RefreshToken> getOptionalTokenFromRawToken(String newRefreshToken) {
         String tokenHashNew = tokenGenerator.getTokenHash(newRefreshToken);
-        Optional<RefreshToken> refreshTokenNew = refreshTokenRepository.findRefreshTokenByTokenHashed(tokenHashNew);
-        return refreshTokenNew;
+        return refreshTokenRepository.findRefreshTokenByTokenHashed(tokenHashNew);
     }
 
     @Test
@@ -286,8 +280,7 @@ public class AuthControllerTest {
         MvcResult mvcResultRefresh = rawOldToken
                 .andExpect(status().isOk()).andReturn();
         String responseBodyRefresh = mvcResultRefresh.getResponse().getContentAsString();
-        String newRefreshToken = JsonPath.read(responseBodyRefresh, "$.refreshToken");
-        return newRefreshToken;
+        return JsonPath.read(responseBodyRefresh, "$.refreshToken");
     }
 
     private String assignTokenHash(RefreshToken refreshToken) {
@@ -322,7 +315,7 @@ public class AuthControllerTest {
 
     private ResultActions loginUser(String email, String password) throws Exception {
         String validJSON = """
-                  { 
+                  {
                 "password": "%s",
                 "mail": "%s"
                   }""".formatted(password, email);

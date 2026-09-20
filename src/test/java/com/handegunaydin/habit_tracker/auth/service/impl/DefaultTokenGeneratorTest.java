@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.commons.util.StringUtils;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.context.ActiveProfiles;
@@ -71,7 +70,6 @@ public class DefaultTokenGeneratorTest {
 
     @Test
     void saveHashedToken_shouldSetCorrectMailAndTokenHash() {
-        ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
         String tokenHash = tokenGenerator.getTokenHash("abc");
         RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash);
 
@@ -83,7 +81,6 @@ public class DefaultTokenGeneratorTest {
 
     @Test
     void saveHashedToken_shouldSetExpiresAtCorrectly() {
-        ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
         String tokenHash = tokenGenerator.getTokenHash("abc");
         Instant before = Instant.now().plusMillis(900000L);
         RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash);

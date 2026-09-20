@@ -2,6 +2,7 @@ package com.handegunaydin.habit_tracker.auth.service.impl;
 
 import com.handegunaydin.habit_tracker.auth.dto.TokenPairResponseDTO;
 import com.handegunaydin.habit_tracker.auth.entity.RefreshToken;
+import com.handegunaydin.habit_tracker.auth.enums.Role;
 import com.handegunaydin.habit_tracker.auth.jwt.JwtService;
 import com.handegunaydin.habit_tracker.auth.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.auth.service.TokenChainRevocationService;
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -85,7 +87,7 @@ public class DefaultAuthServiceTest {
         RefreshToken oldToken = tokenCreator("old-hash");
         RefreshToken newToken = tokenCreator("new-hash");
         triggerRefresh(oldToken, newToken);
-        verify(jwtService).generateToken(captor.capture());
+        verify(jwtService).generateToken(captor.capture(), List.of(Role.CUSTOMER));
         assertEquals(captor.getValue(), newToken.getEmail());
     }
 
@@ -178,7 +180,7 @@ public class DefaultAuthServiceTest {
         when(refreshTokenRepository.findRefreshTokenByTokenHashed("old-hash")).thenReturn(Optional.of(oldToken));
         when(tokenGenerator.populateHashedToken("test@test.com", "new-hash")).thenReturn(newToken);
         when(refreshTokenRepository.revokeIfActive("old-hash")).thenReturn(1);
-        when(jwtService.generateToken("test@test.com")).thenReturn("jwt-token");
+        when(jwtService.generateToken("test@test.com", List.of(Role.CUSTOMER))).thenReturn("jwt-token");
         when(refreshTokenRepository.save(any())).thenReturn(newToken);
         return authService.refresh("old");
     }
