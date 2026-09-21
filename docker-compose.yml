@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: habit-tracker-app
+    container_name: habit_tracker-app
     depends_on:
       - postgres
       - kafka
