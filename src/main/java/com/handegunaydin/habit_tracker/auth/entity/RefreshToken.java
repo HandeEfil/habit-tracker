@@ -4,10 +4,8 @@ import com.handegunaydin.habit_tracker.common.entity.Item;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.annotation.CreatedBy;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Table(name = "refreshtokens")

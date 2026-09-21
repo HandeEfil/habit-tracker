@@ -7,6 +7,8 @@ import com.handegunaydin.habit_tracker.auth.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.auth.service.AuthService;
 import com.handegunaydin.habit_tracker.auth.service.TokenChainRevocationService;
 import com.handegunaydin.habit_tracker.auth.service.TokenGenerator;
+import com.handegunaydin.habit_tracker.user.entity.User;
+import com.handegunaydin.habit_tracker.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class DefaultAuthService implements AuthService {
     private final JwtService jwtService;
     private final TokenGenerator tokenGenerator;
     private final TokenChainRevocationService detectRefreshTokenChain;
+    private final UserRepository userRepository;
 
 
     @Override
@@ -56,7 +59,8 @@ public class DefaultAuthService implements AuthService {
         oldRefreshToken.setRevoked(true);
         oldRefreshToken.setReplacedByTokenId(refreshTokenUpdated.getId());
         refreshTokenRepository.save(oldRefreshToken);
-        return new TokenPairResponseDTO(jwtService.generateToken(oldRefreshToken.getEmail()), rawToken);
+        User user = userRepository.findByMail(oldRefreshToken.getEmail()).orElseThrow( () -> new BadCredentialsException("User doesn't exist"));
+        return new TokenPairResponseDTO(jwtService.generateToken(oldRefreshToken.getEmail(), user.getRoles()), rawToken);
     }
 
     @Override

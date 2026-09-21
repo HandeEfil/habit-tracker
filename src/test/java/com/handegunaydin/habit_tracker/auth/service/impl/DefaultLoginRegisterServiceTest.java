@@ -23,12 +23,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class DefaultUserServiceTest {
+public class DefaultLoginRegisterServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -47,7 +48,7 @@ public class DefaultUserServiceTest {
     private LoginAttemptService loginAttemptService;
 
     @InjectMocks
-    private DefaultUserService userService;
+    private DefaultLoginRegisterService loginRegisterService;
 
     // Register tests
     @Test
@@ -59,9 +60,7 @@ public class DefaultUserServiceTest {
         );
         when(userRepository.existsByMail("test@test.com")).thenReturn(true);
 
-        assertThrows(EmailAlreadyExistsException.class, () -> {
-            userService.register(userRegisterDTO);
-        });
+        assertThrows(EmailAlreadyExistsException.class, () -> loginRegisterService.register(userRegisterDTO));
 
     }
 
@@ -83,7 +82,7 @@ public class DefaultUserServiceTest {
                 "5555555555", LocalDate.now().minusYears(18)));
         assertEquals(new UserRegisterResponseDTO("Test",
                 "test@test.com",
-                "5555555555", LocalDate.now().minusYears(18)), userService.register(userRegisterDTO));
+                "5555555555", LocalDate.now().minusYears(18)), loginRegisterService.register(userRegisterDTO));
 
         verify(userRepository, times(1)).existsByMail(any(String.class));
     }
@@ -96,9 +95,7 @@ public class DefaultUserServiceTest {
                 "5555555555", LocalDate.now().minusYears(18)
         );
         when(userRepository.existsByMail("test@test.com")).thenReturn(true);
-        assertThrows(EmailAlreadyExistsException.class, () -> {
-            userService.register(userRegisterDTO);
-        });
+        assertThrows(EmailAlreadyExistsException.class, () -> loginRegisterService.register(userRegisterDTO));
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -114,9 +111,9 @@ public class DefaultUserServiceTest {
         when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(userLoginDTO.password(), "Test123._hashed")).thenReturn(true);
 
-        when(jwtService.generateToken(userLoginDTO.mail())).thenReturn("Test123._generated_token");
+        when(jwtService.generateToken(userLoginDTO.mail(), user.getRoles())).thenReturn("Test123._generated_token");
         when(authService.generateRefreshToken(userLoginDTO.mail())).thenReturn("Test123._generated_refresh_token");
-        assertEquals(new UserLoginResponseDTO("test@test.com", "Test123._generated_token", "Test123._generated_refresh_token"), userService.login(userLoginDTO));
+        assertEquals(new UserLoginResponseDTO("test@test.com", "Test123._generated_token", "Test123._generated_refresh_token"), loginRegisterService.login(userLoginDTO));
     }
 
     @Test
@@ -124,9 +121,7 @@ public class DefaultUserServiceTest {
         UserLoginDTO userLoginDTO = new UserLoginDTO(
                 "test@test.com", "Test123.");
         when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.empty());
-        assertThrows(BadCredentialsException.class, () -> {
-            userService.login(userLoginDTO);
-        });
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.login(userLoginDTO));
 
     }
 
@@ -139,9 +134,7 @@ public class DefaultUserServiceTest {
         user.setEncodedPassword("Test123._hashed");
         when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(userLoginDTO.password(), "Test123._hashed")).thenReturn(false);
-        assertThrows(BadCredentialsException.class, () -> {
-            userService.login(userLoginDTO);
-        });
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.login(userLoginDTO));
 
     }
     @Test
@@ -152,9 +145,7 @@ public class DefaultUserServiceTest {
         user.setEncodedPassword("Test123._hashed");
         when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
         when(loginAttemptService.IsAccountLocked(userLoginDTO.mail())).thenReturn(true);
-        assertThrows(UserBlockedException.class, () -> {
-            userService.login(userLoginDTO);
-        });
+        assertThrows(UserBlockedException.class, () -> loginRegisterService.login(userLoginDTO));
 
     }
 

@@ -1,5 +1,6 @@
 package com.handegunaydin.habit_tracker.auth.jwt;
 
+import com.handegunaydin.habit_tracker.auth.enums.Role;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
+import java.util.*;
 
 @Service
 public class JwtService {
@@ -20,18 +21,26 @@ public class JwtService {
 
     private final SecretKey signingKey;
 
-    public JwtService( @Value("${jwt.secret}") String secretKey) {
+    public JwtService(@Value("${jwt.secret}") String secretKey) {
 
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        this.signingKey=  Keys.hmacShaKeyFor(keyBytes);
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
-    public String generateToken(String username) {
+
+    public String generateToken(String username, List<Role> roles) {
+        Map<String, List<String>> roleMap = new HashMap<>();
+        roleMap.put("roles", convertRolesToString(roles));
         return Jwts.builder()
                 .subject(username)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(signingKey)
+                .claims(roleMap)
                 .compact();
+    }
+
+    private List<String> convertRolesToString(List<Role> roles) {
+        return roles != null ? roles.stream().map(Role::name).toList(): Collections.emptyList();
     }
 
     public String extractUserName(String token) {
@@ -40,6 +49,15 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload().getSubject();
+    }
+
+    public List<String> extractRoles(String token) {
+        return (List<String>) Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload().get("roles");
+
     }
 
     private Date extractExpiration(String token) {

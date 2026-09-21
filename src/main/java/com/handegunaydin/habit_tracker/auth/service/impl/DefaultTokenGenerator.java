@@ -1,7 +1,6 @@
 package com.handegunaydin.habit_tracker.auth.service.impl;
 
 import com.handegunaydin.habit_tracker.auth.entity.RefreshToken;
-import com.handegunaydin.habit_tracker.auth.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.auth.service.TokenGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,8 +23,6 @@ public class DefaultTokenGenerator implements TokenGenerator {
     @Value("${refresh.token.expiration}")
     private long expirationDurationForRefreshToken;
 
-    private final RefreshTokenRepository refreshTokenRepository;
-
     @Override
     public RefreshToken populateHashedToken(String mail, String tokenHash) {
         RefreshToken refreshToken = new RefreshToken();
@@ -39,7 +36,7 @@ public class DefaultTokenGenerator implements TokenGenerator {
 
     @Override
     public String getTokenHash(String rawToken) {
-        MessageDigest messageDigest = null;
+        MessageDigest messageDigest;
         try {
             messageDigest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
