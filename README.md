@@ -1,2 +1,2 @@
-# habit-tracker
+# habit_tracker
 Habit Tracking Application 
