@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -15,6 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Testcontainers
@@ -35,10 +37,10 @@ public class UserControllerTest {
     @Autowired
     private UserRepository userRepository;
 
-    @Test
-    @WithMockUser(  username = "test@test.com",roles = "CUSTOMER" )
-    void getCurrentUser_shouldReturn200_whenAnyAuthenticatedRole() throws Exception {
 
+    @Test
+    @WithMockUser(username = "test@test.com", roles = "CUSTOMER")
+    void getCurrentUser_shouldReturn200_whenAnyAuthenticatedRole() throws Exception {
         User user = new User();
         user.setMail("test@test.com");
         userRepository.save(user);
@@ -48,7 +50,7 @@ public class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(username = "test@test.com", roles = "ADMIN")
     void getCurrentUser_shouldReturn403_whenAdminRole() throws Exception {
 
         mockMvc.perform(get("/api/users/test@test.com")
@@ -57,10 +59,43 @@ public class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(username = "test@test.com", roles = "CUSTOMER")
     void getUserDetails_shouldReturn403_whenCustomerAccessesAnotherUsersProfile() throws Exception {
 
-        mockMvc.perform(get("/api/users/test@test.com")
+        mockMvc.perform(get("/api/users/test1@test.com")
+        ).andExpect(status().isForbidden());
+
+    }
+
+    @Test
+    @WithMockUser(username = "test@test.com", roles = "CUSTOMER")
+    void updateUser_whenOwner_returns200() throws Exception {
+        User user = new User();
+        user.setMail("test1234@test.com");
+        userRepository.save(user);
+        String requestBody = """
+                { "name": "Test",
+                "mail": "test@test.com",
+                "mobileNumber": "5555555555",
+                "birthDate": "2000-01-01"
+                  }""";
+        mockMvc.perform(put("/api/users/update").contentType(MediaType.APPLICATION_JSON).content(requestBody)
+        ).andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "test@test.com", roles = "CUSTOMER")
+    void updateUser_whenNotOwner_returns403() throws Exception {
+        User user = new User();
+        user.setMail("test1@test.com");
+        userRepository.save(user);
+        String requestBody = """
+                { "name": "Test",
+                "mail": "test1@test.com",
+                "mobileNumber": "5555555555",
+                "birthDate": "2000-01-01"
+                  }""";
+        mockMvc.perform(put("/api/users/update").contentType(MediaType.APPLICATION_JSON).content(requestBody)
         ).andExpect(status().isForbidden());
 
     }

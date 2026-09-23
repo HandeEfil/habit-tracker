@@ -7,4 +7,5 @@ import java.util.List;
 public interface UserService {
     UserProfileDTO getUserDetails(String email);
     List<UserProfileDTO> getUsers();
+    UserProfileDTO updateUser(UserProfileDTO profileDTO);
 }

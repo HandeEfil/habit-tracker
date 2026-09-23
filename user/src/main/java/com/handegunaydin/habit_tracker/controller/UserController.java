@@ -2,6 +2,7 @@ package com.handegunaydin.habit_tracker.controller;
 
 import com.handegunaydin.habit_tracker.dto.UserProfileDTO;
 import com.handegunaydin.habit_tracker.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,12 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileDTO> getUserDetails(@PathVariable String id) {
         return ResponseEntity.ok(userService.getUserDetails(id));
+
+    }
+    @PreAuthorize("hasRole('CUSTOMER') and @defaultUserSecurityService.isOwner(#profileDTO.mail(), authentication.name)" )
+    @PutMapping("/update")
+    public ResponseEntity<UserProfileDTO> getUserDetails(@Valid @RequestBody UserProfileDTO profileDTO) {
+        return ResponseEntity.ok(userService.updateUser(profileDTO));
 
     }
 

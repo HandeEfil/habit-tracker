@@ -5,15 +5,15 @@ import com.handegunaydin.habit_tracker.dto.UserLoginDTO;
 import com.handegunaydin.habit_tracker.dto.UserLoginResponseDTO;
 import com.handegunaydin.habit_tracker.dto.UserRegisterDTO;
 import com.handegunaydin.habit_tracker.dto.UserRegisterResponseDTO;
+import com.handegunaydin.habit_tracker.entity.User;
 import com.handegunaydin.habit_tracker.exception.EmailAlreadyExistsException;
 import com.handegunaydin.habit_tracker.exception.UserBlockedException;
 import com.handegunaydin.habit_tracker.jwt.JwtService;
 import com.handegunaydin.habit_tracker.mapper.UserMapper;
+import com.handegunaydin.habit_tracker.repository.UserRepository;
 import com.handegunaydin.habit_tracker.service.AuthService;
 import com.handegunaydin.habit_tracker.service.LoginAttemptService;
 import com.handegunaydin.habit_tracker.service.LoginRegisterService;
-import com.handegunaydin.habit_tracker.entity.User;
-import com.handegunaydin.habit_tracker.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -56,8 +56,9 @@ public class DefaultLoginRegisterService implements LoginRegisterService {
         if (passwordEncoder.matches(user.password(), byEmail.getEncodedPassword())) {
             loginAttemptService.resetAttempts(mail);
             String token = authService.generateRefreshToken(user.mail());
-            return new UserLoginResponseDTO(mail, jwtService.generateToken(mail,byEmail.getRoles()),token);
+            return new UserLoginResponseDTO(mail, jwtService.generateToken(mail, byEmail.getRoles()), token);
         }
+
         loginAttemptService.recordFailedAttempt(byEmail);
         throw new BadCredentialsException("invalid.credentials");
     }
