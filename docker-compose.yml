@@ -6,10 +6,12 @@ services:
       - postgres
       - kafka
       - redis
+      - mongo
     ports:
       - "8080:8080"
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DB_URL_MONGO: ${DB_URL_MONGO}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -19,7 +21,7 @@ services:
     image: postgres:16-alpine
     container_name: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
@@ -53,6 +55,12 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9094
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -60,3 +68,4 @@ services:
       - "6379:6379"
 volumes:
   postgres_data:
+  mongo-data:

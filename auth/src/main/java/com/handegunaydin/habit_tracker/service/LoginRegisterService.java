@@ -9,5 +9,8 @@ import com.handegunaydin.habit_tracker.dto.UserRegisterResponseDTO;
 public interface LoginRegisterService {
 
     UserRegisterResponseDTO register(UserRegisterDTO user);
+
     UserLoginResponseDTO login(UserLoginDTO user);
+
+    void closeAccount(String name, String password);
 }

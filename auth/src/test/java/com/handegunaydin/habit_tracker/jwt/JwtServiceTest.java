@@ -52,6 +52,7 @@ public class JwtServiceTest {
 
     @Test
     void shouldReturnFalse_whenTokenIsExpired() {
+        ReflectionTestUtils.setField(jwtService, "expirationTime", -1000L);
         String token = jwtService.generateToken("test@test.com", List.of(Role.CUSTOMER));
         assertThrows(ExpiredJwtException.class, () -> jwtService.isTokenExpired(token));
     }

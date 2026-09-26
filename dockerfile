@@ -6,6 +6,7 @@ COPY auth ./auth
 COPY common ./common
 COPY notification ./notification
 COPY user ./user
+COPY audit ./audit
 RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:21-jre

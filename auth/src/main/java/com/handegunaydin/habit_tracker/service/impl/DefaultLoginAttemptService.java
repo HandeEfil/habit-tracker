@@ -1,21 +1,27 @@
 package com.handegunaydin.habit_tracker.service.impl;
 
-import com.handegunaydin.habit_tracker.service.LoginAttemptService;
 import com.handegunaydin.habit_tracker.entity.User;
+import com.handegunaydin.habit_tracker.enums.SecurityEventType;
+import com.handegunaydin.habit_tracker.factory.SecurityEventFactory;
+import com.handegunaydin.habit_tracker.service.LoginAttemptService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DefaultLoginAttemptService implements LoginAttemptService {
     private final StringRedisTemplate stringRedisTemplate;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     private final static String ATTEMPT_COUNT_KEY = "login-attempt";
     private final static String ACCOUNT_LOCKED_KEY = "lock-account";
@@ -30,7 +36,7 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
     @Override
     public long recordFailedAttempt(User user) {
         try {
-            if(this.IsAccountLocked(user.getMail())){
+            if (this.IsAccountLocked(user.getMail())) {
                 return 0L;
             }
             Long attempt = stringRedisTemplate.opsForValue().increment(ATTEMPT_COUNT_KEY + ":" + user.getMail());
@@ -41,6 +47,7 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
                 stringRedisTemplate.expire(ATTEMPT_COUNT_KEY + ":" + user.getMail(), Duration.ofMinutes(15));
             }
             if (maxAttempt <= attempt) {
+                logUserLock(user);
                 // TODO: Trigger kafka event to inform user
                 registerLockForAccount(user.getMail());
             }
@@ -50,6 +57,14 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
 
         }
 
+    }
+
+    private void logUserLock(User user) {
+
+        Map<String, Object> metaData = new HashMap<>();
+        metaData.put("attempt-count", maxAttempt);
+        metaData.put("lock-duration", lockDuration);
+        applicationEventPublisher.publishEvent(SecurityEventFactory.create(user.getMail(), SecurityEventType.ACCOUNT_LOCKED, null, null, metaData));
     }
 
     @Override

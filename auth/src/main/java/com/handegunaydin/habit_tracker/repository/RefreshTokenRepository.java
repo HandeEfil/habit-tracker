@@ -5,11 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
+@Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
     @Modifying
@@ -18,6 +19,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             "r.tokenHashed = :hashedToken and r.revoked=false")
     int revokeIfActive(@Param(value = "hashedToken") String hashedToken);
 
+    @Modifying
     @Query("UPDATE RefreshToken r " +
             "set r.revoked = true where " +
             "r.email = :email and r.revoked=false")

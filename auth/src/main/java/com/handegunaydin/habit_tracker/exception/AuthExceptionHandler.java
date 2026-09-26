@@ -48,4 +48,9 @@ public class AuthExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(Map.of("error", "user_blocked", "message", messageSource.getMessage(ex.getUserBlockedMsg(), ex.getArgs(), LocaleContextHolder.getLocale())));
     }
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleUserBlockedException(UserNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Map.of("error", "user_blocked", "message", messageSource.getMessage(ex.getMsg(), ex.getArgs(), LocaleContextHolder.getLocale())));
+    }
 }

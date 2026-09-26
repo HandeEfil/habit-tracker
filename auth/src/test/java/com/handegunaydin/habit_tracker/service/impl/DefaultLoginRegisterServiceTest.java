@@ -4,16 +4,17 @@ import com.handegunaydin.habit_tracker.dto.UserLoginDTO;
 import com.handegunaydin.habit_tracker.dto.UserLoginResponseDTO;
 import com.handegunaydin.habit_tracker.dto.UserRegisterDTO;
 import com.handegunaydin.habit_tracker.dto.UserRegisterResponseDTO;
+import com.handegunaydin.habit_tracker.entity.User;
 import com.handegunaydin.habit_tracker.exception.EmailAlreadyExistsException;
 import com.handegunaydin.habit_tracker.exception.UserBlockedException;
 import com.handegunaydin.habit_tracker.jwt.JwtService;
 import com.handegunaydin.habit_tracker.mapper.UserMapper;
+import com.handegunaydin.habit_tracker.repository.UserRepository;
 import com.handegunaydin.habit_tracker.service.AuthService;
 import com.handegunaydin.habit_tracker.service.LoginAttemptService;
-import com.handegunaydin.habit_tracker.entity.User;
-import com.handegunaydin.habit_tracker.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,8 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -137,6 +137,7 @@ public class DefaultLoginRegisterServiceTest {
         assertThrows(BadCredentialsException.class, () -> loginRegisterService.login(userLoginDTO));
 
     }
+
     @Test
     void shouldThrowException_whenAccountIsLocked() {
         UserLoginDTO userLoginDTO = new UserLoginDTO(
@@ -147,6 +148,68 @@ public class DefaultLoginRegisterServiceTest {
         when(loginAttemptService.IsAccountLocked(userLoginDTO.mail())).thenReturn(true);
         assertThrows(UserBlockedException.class, () -> loginRegisterService.login(userLoginDTO));
 
+    }
+
+    @Test
+    void closeAccount_shouldThrowException_WhenUserNotFound() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.empty());
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.closeAccount("test@test.com", "281501"));
+
+    }
+
+    @Test
+    void closeAccount_shouldThrowException_WhenPasswordNotMatched() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(passwordEncoder.matches(any(), any())).thenReturn(false);
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.closeAccount("test@test.com", "281501"));
+
+    }
+
+    @Test
+    void shouldNotRevokeTokens_WhenPasswordNotMatched() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(passwordEncoder.matches(any(), any())).thenReturn(false);
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.closeAccount("test@test.com", "281501"));
+        verify(authService, never()).revokeAllForUser("test@test.com");
+    }
+
+    @Test
+    void shouldNotSaveUser_WhenPasswordNotMatched() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(passwordEncoder.matches(any(), any())).thenReturn(false);
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.closeAccount("test@test.com", "281501"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldUpdateUser_WhenPasswordMatched() {
+        User user = new User();
+        user.setEnabled(true);
+        user.setEncodedPassword("Test123._hashed");
+        user.setMail("test@test.com");
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(passwordEncoder.matches(any(), any())).thenReturn(true);
+        when(userRepository.updateUserEnabled(any())).thenReturn(1);
+        loginRegisterService.closeAccount("test@test.com", "281501");
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertFalse(captor.getValue().isEnabled());
+    }
+
+    @Test
+    void shouldTriggerRevokeAllForUser_WhenPasswordMatched() {
+        User user = new User();
+        user.setEnabled(true);
+        user.setEncodedPassword("Test123._hashed");
+        user.setMail("test@test.com");
+        userRepository.save(user);
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(passwordEncoder.matches(any(), any())).thenReturn(true);
+        when(userRepository.updateUserEnabled(any())).thenReturn(1);
+
+        loginRegisterService.closeAccount("test@test.com", "281501");
+
+        verify(authService, times(1)).revokeAllForUser("test@test.com");
     }
 
 }
