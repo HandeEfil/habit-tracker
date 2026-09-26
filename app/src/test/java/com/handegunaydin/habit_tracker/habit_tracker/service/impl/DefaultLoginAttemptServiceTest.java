@@ -5,6 +5,7 @@ import com.handegunaydin.habit_tracker.entity.User;
 import com.handegunaydin.habit_tracker.service.impl.DefaultLoginAttemptService;
 import com.redis.testcontainers.RedisContainer;
 import lombok.Getter;
+import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -35,6 +37,11 @@ public class DefaultLoginAttemptServiceTest {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    @Container
+    @ServiceConnection
+    static MongoDBContainer mongo =
+            new MongoDBContainer("mongo:7");
 
     @Value("${habit_tracker.max_failed_login_attempt.count}")
     private int maxFailedLoginAttempts;
@@ -57,13 +64,14 @@ public class DefaultLoginAttemptServiceTest {
     void setUp() {
         loginAttemptService.resetAttempts(testUser().getMail());
         loginAttemptService.resetLock(testUser().getMail());
+        eventListener.setEvents(new ArrayList<>());
     }
 
     @TestConfiguration
     static class TestEventConfiguration {
 
         @Bean
-        TestSecurityEventListener testSecurityEventListener(){
+        TestSecurityEventListener testSecurityEventListener() {
             return new TestSecurityEventListener();
         }
 
@@ -71,7 +79,9 @@ public class DefaultLoginAttemptServiceTest {
 
     static class TestSecurityEventListener {
         @Getter
-        private final List<SecurityEvent> events = new ArrayList<>();
+        @Setter
+        private List<SecurityEvent> events = new ArrayList<>();
+
         @EventListener
         public void handle(SecurityEvent event) {
             events.add(event);

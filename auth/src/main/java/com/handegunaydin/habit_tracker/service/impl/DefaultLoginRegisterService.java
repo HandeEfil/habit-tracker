@@ -16,12 +16,15 @@ import com.handegunaydin.habit_tracker.service.LoginAttemptService;
 import com.handegunaydin.habit_tracker.service.LoginRegisterService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DefaultLoginRegisterService implements LoginRegisterService {
 
 
@@ -49,7 +52,7 @@ public class DefaultLoginRegisterService implements LoginRegisterService {
         String mail = user.mail();
         User byEmail = userRepository.findByMail(mail).orElseThrow(() -> new BadCredentialsException("invalid.credentials"));
 
-        if (loginAttemptService.IsAccountLocked(mail)) {
+        if (loginAttemptService.IsAccountLocked(mail) || !byEmail.isEnabled()) {
             throw new UserBlockedException(mail);
         }
 
@@ -61,5 +64,22 @@ public class DefaultLoginRegisterService implements LoginRegisterService {
 
         loginAttemptService.recordFailedAttempt(byEmail);
         throw new BadCredentialsException("invalid.credentials");
+    }
+
+    @Override
+    @Transactional
+    public void closeAccount(String mail, String password) {
+        User byEmail = userRepository.findByMail(mail).orElseThrow(() -> new BadCredentialsException("invalid.credentials"));
+        if (!passwordEncoder.matches(password, byEmail.getEncodedPassword())) {
+            throw new BadCredentialsException("bad.credentials");
+        }
+        if(userRepository.updateUserEnabled(byEmail.getId()) == 1) {
+            byEmail.setEnabled(false);
+            authService.revokeAllForUser(mail);
+            userRepository.save(byEmail);
+        }
+        //TODO: send email with kafka to retrieve account.
+
+
     }
 }

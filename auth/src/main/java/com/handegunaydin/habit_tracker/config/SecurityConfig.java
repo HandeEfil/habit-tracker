@@ -1,7 +1,6 @@
 package com.handegunaydin.habit_tracker.config;
 
 import com.handegunaydin.habit_tracker.jwt.JwtAuthenticationFilter;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -20,11 +19,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    @PostConstruct
-    public void test() {
-        System.out.println("🔥 SECURITY CONFIG LOADED");
-    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) {
         http

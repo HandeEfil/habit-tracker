@@ -1,9 +1,13 @@
 package com.handegunaydin.habit_tracker.habit_tracker.controller;
 
 import com.handegunaydin.habit_tracker.entity.RefreshToken;
+import com.handegunaydin.habit_tracker.entity.User;
 import com.handegunaydin.habit_tracker.repository.RefreshTokenRepository;
+import com.handegunaydin.habit_tracker.repository.UserRepository;
 import com.handegunaydin.habit_tracker.service.TokenGenerator;
 import com.jayway.jsonpath.JsonPath;
+import com.redis.testcontainers.RedisContainer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,17 +15,23 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,15 +48,38 @@ public class AuthControllerTest {
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
+
+    @Container
+    @ServiceConnection
+    static MongoDBContainer mongo =
+            new MongoDBContainer("mongo:7");
+
+    @Container
+    static RedisContainer redis = new RedisContainer(DockerImageName.parse("redis:7-alpine"));
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired
     private TokenGenerator tokenGenerator;
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     @Value("${habit_tracker.max_failed_login_attempt.count}")
     private int maxFailedLoginAttempts;
+
+
+    @DynamicPropertySource
+    static void redisProps(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+    }
+
+    @BeforeEach
+    void setUp(){
+        userRepository.deleteAll();
+    }
 
     @Test
     void shouldReturn400_whenEmailIsInvalid() throws Exception {
@@ -268,6 +301,50 @@ public class AuthControllerTest {
         assertTrue(tokenByTokenHashed.isPresent());
         assertTrue(tokenByTokenHashed.get().isRevoked());
 
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void closeAccount_whenPasswordIsSuccessful_Returns200() throws Exception {
+        registerUser("test@test.com", "Hande123!");
+        loginUser("test@test.com", "Hande123!");
+        closeAccount("Hande123!").andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void closeAccount_whenPasswordIsSuccessful_UserDisabled() throws Exception {
+        registerUser("test@test.com", "Hande123!");
+        loginUser("test@test.com", "Hande123!");
+        closeAccount("Hande123!").andExpect(status().isOk());
+        Optional<User> user = userRepository.findByMail("test@test.com");
+        assertTrue(user.isPresent());
+        assertFalse(user.get().isEnabled());
+
+
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void closeAccount_whenPasswordIsSuccessful_AllTokensRevoked() throws Exception {
+        registerUser("test@test.com", "Hande123!");
+        loginUser("test@test.com", "Hande123!");
+        closeAccount("Hande123!").andExpect(status().isOk());
+        long count = refreshTokenRepository.findRefreshTokenByEmail("test@test.com").stream().filter(Predicate.not(RefreshToken::isRevoked)).count();
+
+        assertEquals(0L, count);
+
+
+    }
+
+    private ResultActions closeAccount(String password) throws Exception {
+        String validJSON = """
+                  { 
+                "password": "%s"
+                  }""".formatted(password);
+        return mockMvc.perform(post("/api/auth/close-account")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(validJSON));
     }
 
 

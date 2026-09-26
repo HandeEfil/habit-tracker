@@ -33,6 +33,11 @@
             <artifactId>auth</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.handegunaydin</groupId>
+            <artifactId>audit</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!--        <dependency>-->
         <!--            <groupId>junit</groupId>-->
         <!--            <artifactId>junit</artifactId>-->

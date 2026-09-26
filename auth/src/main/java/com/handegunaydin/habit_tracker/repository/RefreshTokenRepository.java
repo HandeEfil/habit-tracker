@@ -19,6 +19,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             "r.tokenHashed = :hashedToken and r.revoked=false")
     int revokeIfActive(@Param(value = "hashedToken") String hashedToken);
 
+    @Modifying
     @Query("UPDATE RefreshToken r " +
             "set r.revoked = true where " +
             "r.email = :email and r.revoked=false")

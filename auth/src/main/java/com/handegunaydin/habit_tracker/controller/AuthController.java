@@ -9,12 +9,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(value = "/api/auth")
 @Tag(name = "Authentication", description = "Authentication and authorization endpoints")
-public class AuthController{
+public class AuthController {
     private final LoginRegisterService loginRegisterService;
     private final AuthService authService;
 
@@ -29,20 +34,28 @@ public class AuthController{
     )
     @ApiResponse(responseCode = "201", description = "User registered successfully")
     @ApiResponse(responseCode = "400", description = "Invalid registration data")
-    @PostMapping( "/register")
-    public ResponseEntity<UserRegisterResponseDTO> register(@Valid @RequestBody UserRegisterDTO registerRequest){
+    @PostMapping("/register")
+    public ResponseEntity<UserRegisterResponseDTO> register(@Valid @RequestBody UserRegisterDTO registerRequest) {
         return ResponseEntity.status(HttpStatus.CREATED).body(loginRegisterService.register(registerRequest));
 
     }
 
-    @PostMapping( "/login")
-    public ResponseEntity<UserLoginResponseDTO> login(@RequestBody UserLoginDTO user){
+    @PostMapping("/login")
+    public ResponseEntity<UserLoginResponseDTO> login(@RequestBody UserLoginDTO user) {
         return ResponseEntity.ok(loginRegisterService.login(user));
     }
 
     @PostMapping(value = "/refresh")
-    public ResponseEntity<TokenPairResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequestDTO requestDTO){
+    public ResponseEntity<TokenPairResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequestDTO requestDTO) {
         return ResponseEntity.ok(authService.refresh(requestDTO.refreshToken()));
+    }
+
+    @PostMapping(value = "/close-account")
+    @PreAuthorize(value = "hasRole('CUSTOMER')")
+    public ResponseEntity<Void> closeAccount(@Valid @RequestBody CloseAccountDTO closeAccountDTO, Authentication authentication) {
+        loginRegisterService.closeAccount(authentication.getName(), closeAccountDTO.password());
+        return ResponseEntity.ok(null);
+
     }
 
 }
