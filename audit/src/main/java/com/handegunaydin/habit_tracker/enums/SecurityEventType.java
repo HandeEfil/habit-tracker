@@ -4,5 +4,6 @@ public enum SecurityEventType {
 
     ACCOUNT_LOCKED,
     PROFILE_UPDATED,
-    PASSWORD_CHANGED
+    PASSWORD_CHANGED,
+    PASSWORD_CHANGE_FAILED
 }

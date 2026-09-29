@@ -13,14 +13,14 @@ public class SecurityEventFactory {
 
     public static SecurityEvent create(String mail, SecurityEventType eventType, Object source, Object target, Map<String, Object> metaData) {
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        if(requestAttributes == null){
-            return new SecurityEvent(mail, SecurityEventType.ACCOUNT_LOCKED, null, null, null, null, metaData);
+        if (requestAttributes == null) {
+            return new SecurityEvent(mail, eventType, null, null, null, null, metaData);
         }
         String ip = requestAttributes.getAttribute("ip", RequestAttributes.SCOPE_REQUEST) != null ?
                 (String) requestAttributes.getAttribute("ip", RequestAttributes.SCOPE_REQUEST) : null;
         String user_agent = requestAttributes.getAttribute("user-agent", RequestAttributes.SCOPE_REQUEST) != null ?
                 requestAttributes.getAttribute("user-agent", RequestAttributes.SCOPE_REQUEST).toString() : null;
-        return new SecurityEvent(mail, SecurityEventType.ACCOUNT_LOCKED, ip, user_agent, null, null, metaData);
+        return new SecurityEvent(mail, eventType, ip, user_agent, null, null, metaData);
     }
 
 

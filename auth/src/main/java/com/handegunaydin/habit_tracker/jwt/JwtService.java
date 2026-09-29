@@ -27,7 +27,7 @@ public class JwtService {
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(String username, List<Role> roles) {
+    public String generateToken(String username, List<Role> roles, UUID sessionId) {
         Map<String, List<String>> roleMap = new HashMap<>();
         roleMap.put("roles", convertRolesToString(roles));
         return Jwts.builder()
@@ -35,12 +35,14 @@ public class JwtService {
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(signingKey)
+                .id(UUID.randomUUID().toString())
                 .claims(roleMap)
+                .claim("sessionId", sessionId.toString())
                 .compact();
     }
 
     private List<String> convertRolesToString(List<Role> roles) {
-        return roles != null ? roles.stream().map(Role::name).toList(): Collections.emptyList();
+        return roles != null ? roles.stream().map(Role::name).toList() : Collections.emptyList();
     }
 
     public String extractUserName(String token) {
@@ -69,6 +71,33 @@ public class JwtService {
                 .getExpiration();
     }
 
+    public String extractID(String token) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getId();
+    }
+
+    public Date extractIssuedTime(String token) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getIssuedAt();
+    }
+
+
+    public String extractSessionId(String accessToken) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(accessToken)
+                .getPayload().get("sessionId").toString();
+    }
+
     protected boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
@@ -81,6 +110,5 @@ public class JwtService {
             return false;
         }
     }
-
 
 }

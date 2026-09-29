@@ -13,6 +13,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.Base64;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -71,7 +72,7 @@ public class DefaultTokenGeneratorTest {
     @Test
     void saveHashedToken_shouldSetCorrectMailAndTokenHash() {
         String tokenHash = tokenGenerator.getTokenHash("abc");
-        RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash);
+        RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash, UUID.randomUUID());
 
         assertEquals("test@test.com", refreshToken.getEmail());
         assertEquals(tokenHash, refreshToken.getTokenHashed());
@@ -83,7 +84,7 @@ public class DefaultTokenGeneratorTest {
     void saveHashedToken_shouldSetExpiresAtCorrectly() {
         String tokenHash = tokenGenerator.getTokenHash("abc");
         Instant before = Instant.now().plusMillis(900000L);
-        RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash);
+        RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash, UUID.randomUUID());
         Instant after = Instant.now().plusMillis(900000L);
         assertTrue(before.isBefore(refreshToken.getExpiresAt()) || before.equals(refreshToken.getExpiresAt()));
         assertTrue(after.isAfter(refreshToken.getExpiresAt()) || before.equals(refreshToken.getExpiresAt()));

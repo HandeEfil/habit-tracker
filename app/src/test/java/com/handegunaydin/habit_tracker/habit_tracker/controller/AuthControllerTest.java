@@ -1,9 +1,13 @@
 package com.handegunaydin.habit_tracker.habit_tracker.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.handegunaydin.habit_tracker.dto.UserLoginResponseDTO;
 import com.handegunaydin.habit_tracker.entity.RefreshToken;
 import com.handegunaydin.habit_tracker.entity.User;
 import com.handegunaydin.habit_tracker.repository.RefreshTokenRepository;
+import com.handegunaydin.habit_tracker.repository.SecurityEventRepository;
 import com.handegunaydin.habit_tracker.repository.UserRepository;
+import com.handegunaydin.habit_tracker.service.RedisTokenService;
 import com.handegunaydin.habit_tracker.service.TokenGenerator;
 import com.jayway.jsonpath.JsonPath;
 import com.redis.testcontainers.RedisContainer;
@@ -29,6 +33,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -65,6 +70,10 @@ public class AuthControllerTest {
     private RefreshTokenRepository refreshTokenRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private RedisTokenService redisTokenService;
+    @Autowired
+    private SecurityEventRepository securityEventRepository;
 
     @Value("${habit_tracker.max_failed_login_attempt.count}")
     private int maxFailedLoginAttempts;
@@ -77,7 +86,7 @@ public class AuthControllerTest {
     }
 
     @BeforeEach
-    void setUp(){
+    void setUp() {
         userRepository.deleteAll();
     }
 
@@ -305,6 +314,81 @@ public class AuthControllerTest {
 
     @Test
     @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void logout_whenPasswordIsSuccessful_Returns200() throws Exception {
+        registerUser("test@test.com", "Test123!");
+        UserLoginResponseDTO loginResponse = getLoginResponse("test@test.com", "Test123!");
+        logout(loginResponse.token()).andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void logout_shouldRevokeCurrentSessionAndDisableAccessToken() throws Exception {
+        registerUser("test@test.com", "Test123!");
+        UserLoginResponseDTO loginResponse = getLoginResponse("test@test.com", "Test123!");
+        logout(loginResponse.token()).andExpect(status().isOk());
+        assertTrue(refreshTokenRepository.findAll().stream().findFirst().get().isRevoked());
+        assertTrue(redisTokenService.isAccessTokenDisabled(loginResponse.token()));
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void logout_shouldNotDisableAccessToken_WhenNoRefreshTokenWasRevoked() throws Exception {
+        registerUser("test@test.com", "Test123!");
+        UserLoginResponseDTO loginResponse = getLoginResponse("test@test.com", "Test123!");
+        refreshTokenRepository.deleteAll();
+        logout(loginResponse.token()).andExpect(status().isOk());
+        assertFalse(redisTokenService.isAccessTokenDisabled(loginResponse.token()));
+    }
+
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void logout_shouldRevokeCurrentSessionNotOthers() throws Exception {
+        registerUser("test@test.com", "Test123!");
+        UserLoginResponseDTO firstSessionResponse = getLoginResponse("test@test.com", "Test123!");
+        UserLoginResponseDTO secondSessionResponse = getLoginResponse("test@test.com", "Test123!");
+        logout(secondSessionResponse.token()).andExpect(status().isOk());
+        assertTrue(redisTokenService.isAccessTokenDisabled(secondSessionResponse.token()));
+        assertFalse(redisTokenService.isAccessTokenDisabled(firstSessionResponse.token()));
+        assertEquals(2, refreshTokenRepository.findAll().size());
+        assertEquals(1, refreshTokenRepository.findAll().stream().filter(token -> token.isRevoked()).count());
+    }
+
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void logoutAllDevices_shouldRevokeAllSessionsAndDisableAccessToken() throws Exception {
+        registerUser("test@test.com", "Test123!");
+        UserLoginResponseDTO firstDevice = getLoginResponse("test@test.com", "Test123!");
+        UserLoginResponseDTO secondDevice = getLoginResponse("test@test.com", "Test123!");
+        UserLoginResponseDTO thirdDevice = getLoginResponse("test@test.com", "Test123!");
+
+        assertEquals(3, refreshTokenRepository.findAll().stream().filter(token -> !token.isRevoked()).count());
+        logoutALLDevices("test@test.com");
+        assertEquals(0, refreshTokenRepository.findAll().stream().filter(token -> !token.isRevoked()).count());
+        assertTrue(redisTokenService.isAllAccessTokensForUserDisabled("test@test.com", Date.from(Instant.now().minusSeconds(600))));
+
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
+    void changePassword_shouldRevokeAllSessionsExceptCurrent() throws Exception {
+        registerUser("test@test.com", "Test123!");
+        UserLoginResponseDTO firstDevice = getLoginResponse("test@test.com", "Test123!");
+        UserLoginResponseDTO secondDevice = getLoginResponse("test@test.com", "Test123!");
+        UserLoginResponseDTO thirdDevice = getLoginResponse("test@test.com", "Test123!");
+
+        assertEquals(3, refreshTokenRepository.findAll().stream().filter(token -> !token.isRevoked()).count());
+        changePassword("Test123!", "Test1234!", thirdDevice.token());
+        assertEquals(1, securityEventRepository.findAll().size());
+        assertEquals(1, refreshTokenRepository.findAll().stream().filter(token -> !token.isRevoked()).count());
+
+
+    }
+
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER", username = "test@test.com")
     void closeAccount_whenPasswordIsSuccessful_Returns200() throws Exception {
         registerUser("test@test.com", "Hande123!");
         loginUser("test@test.com", "Hande123!");
@@ -376,6 +460,16 @@ public class AuthControllerTest {
                 .content(refreshJSON));
     }
 
+    private ResultActions changePassword(String oldPassword, String newPassword, String token) throws Exception {
+        String refreshJSON = """
+                { "oldPassword": "%s",
+                 "newPassword": "%s"}""".formatted(oldPassword, newPassword);
+        return mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(refreshJSON));
+    }
+
 
     private ResultActions registerUser(String email, String password) throws Exception {
         String validJSON = """
@@ -399,6 +493,23 @@ public class AuthControllerTest {
         return mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(validJSON));
+    }
+
+    private ResultActions logoutALLDevices(String mail) throws Exception {
+
+        return mockMvc.perform(post("/api/auth/logout-all-devices")
+                .contentType(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions logout(String token) throws Exception {
+
+        return mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON));
+    }
+
+    private UserLoginResponseDTO getLoginResponse(String email, String password) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(loginUser(email, password).andReturn().getResponse().getContentAsString(), UserLoginResponseDTO.class);
     }
 
     private RefreshToken tokenCreator() {
