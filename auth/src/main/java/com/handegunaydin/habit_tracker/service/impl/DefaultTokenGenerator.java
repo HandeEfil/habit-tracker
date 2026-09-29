@@ -13,6 +13,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.UUID;
 
 import static java.time.Instant.now;
 
@@ -24,12 +25,13 @@ public class DefaultTokenGenerator implements TokenGenerator {
     private long expirationDurationForRefreshToken;
 
     @Override
-    public RefreshToken populateHashedToken(String mail, String tokenHash) {
+    public RefreshToken populateHashedToken(String mail, String tokenHash, UUID sessionId) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setTokenHashed(tokenHash);
         Instant now = now();
         refreshToken.setCreatedAt(now);
         refreshToken.setEmail(mail);
+        refreshToken.setSessionId(sessionId);
         refreshToken.setExpiresAt(now.plusMillis(expirationDurationForRefreshToken));
         return refreshToken;
     }

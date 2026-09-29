@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
@@ -20,12 +22,13 @@ public class SecurityEventListener {
     private final EventLogMapper eventLogMapper;
     private final SecurityEventRepository securityEventRepository;
     private final ChangeDetector changeDetector;
+    private final ObjectMapper objectMapper;
 
     @Async
     @EventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handle(SecurityEvent securityEvent) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
             EventLog entity = eventLogMapper.toEntity(securityEvent);
 
             // TODO: Consider replacing conditional event metadata handling with Strategy + Factory

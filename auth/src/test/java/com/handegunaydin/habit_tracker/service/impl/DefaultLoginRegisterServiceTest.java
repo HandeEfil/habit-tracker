@@ -1,28 +1,29 @@
 package com.handegunaydin.habit_tracker.service.impl;
 
-import com.handegunaydin.habit_tracker.dto.UserLoginDTO;
-import com.handegunaydin.habit_tracker.dto.UserLoginResponseDTO;
-import com.handegunaydin.habit_tracker.dto.UserRegisterDTO;
-import com.handegunaydin.habit_tracker.dto.UserRegisterResponseDTO;
+import com.handegunaydin.habit_tracker.dto.*;
 import com.handegunaydin.habit_tracker.entity.User;
 import com.handegunaydin.habit_tracker.exception.EmailAlreadyExistsException;
 import com.handegunaydin.habit_tracker.exception.UserBlockedException;
 import com.handegunaydin.habit_tracker.jwt.JwtService;
 import com.handegunaydin.habit_tracker.mapper.UserMapper;
+import com.handegunaydin.habit_tracker.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.repository.UserRepository;
 import com.handegunaydin.habit_tracker.service.AuthService;
 import com.handegunaydin.habit_tracker.service.LoginAttemptService;
+import com.handegunaydin.habit_tracker.service.RedisTokenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +47,12 @@ public class DefaultLoginRegisterServiceTest {
     private AuthService authService;
     @Mock
     private LoginAttemptService loginAttemptService;
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private RedisTokenService redisTokenService;
+    @Mock
+    ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private DefaultLoginRegisterService loginRegisterService;
@@ -103,6 +110,7 @@ public class DefaultLoginRegisterServiceTest {
 
     @Test
     void shouldReturnToken_whenCredentialsAreValid() {
+        UUID sessionID = UUID.randomUUID();
         UserLoginDTO userLoginDTO = new UserLoginDTO(
                 "test@test.com", "Test123.");
         User user = new User();
@@ -111,8 +119,8 @@ public class DefaultLoginRegisterServiceTest {
         when(userRepository.findByMail(userLoginDTO.mail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(userLoginDTO.password(), "Test123._hashed")).thenReturn(true);
 
-        when(jwtService.generateToken(userLoginDTO.mail(), user.getRoles())).thenReturn("Test123._generated_token");
-        when(authService.generateRefreshToken(userLoginDTO.mail())).thenReturn("Test123._generated_refresh_token");
+        when(jwtService.generateToken(eq(userLoginDTO.mail()), eq(user.getRoles()), any(UUID.class))).thenReturn("Test123._generated_token");
+        when(authService.generateRefreshToken(eq(userLoginDTO.mail()), any(UUID.class))).thenReturn("Test123._generated_refresh_token");
         assertEquals(new UserLoginResponseDTO("test@test.com", "Test123._generated_token", "Test123._generated_refresh_token"), loginRegisterService.login(userLoginDTO));
     }
 
@@ -149,7 +157,80 @@ public class DefaultLoginRegisterServiceTest {
         assertThrows(UserBlockedException.class, () -> loginRegisterService.login(userLoginDTO));
 
     }
+    //logout tests
 
+    @Test
+    void shouldProvideParameter_whenUserLogout() {
+        UUID sessionId = UUID.randomUUID();
+        when(jwtService.extractSessionId(any())).thenReturn(sessionId.toString());
+        doNothing().when(redisTokenService).disableAccessToken("access-token");
+        loginRegisterService.logout("test@test.com", "access-token");
+        verify(refreshTokenRepository, times(1)).revokeCurrentSession("test@test.com", sessionId);
+        verify(redisTokenService, times(1)).disableAccessToken("access-token");
+    }
+
+
+    //logout all devices test
+
+    @Test
+    void shouldProvideParameter_whenUserLogoutAllDevices() {
+        doNothing().when(authService).revokeAllForUser("test@test.com");
+        doNothing().when(redisTokenService).disableAllAccessTokensForUser("test@test.com");
+        loginRegisterService.logoutAllDevices("test@test.com");
+        verify(authService, times(1)).revokeAllForUser("test@test.com");
+        verify(redisTokenService, times(1)).disableAllAccessTokensForUser("test@test.com");
+    }
+
+    //change password
+
+    @Test
+    void changePassword_shouldThrowException_WhenUserNotFound() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.empty());
+        ChangePasswordDTO changePasswordDTO = new ChangePasswordDTO("oldPassword", "newPassword");
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.changePassword(changePasswordDTO, "test@test.com", "access-token"));
+
+    }
+
+    @Test
+    void changePassword_shouldPublishEvent_WhenPasswordMismatch() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(jwtService.extractSessionId("access-token")).thenReturn("session-id");
+        when(passwordEncoder.matches(any(), any())).thenReturn(false);
+        ChangePasswordDTO changePasswordDTO = new ChangePasswordDTO("oldPassword", "newPassword");
+        assertThrows(BadCredentialsException.class, () -> loginRegisterService.changePassword(changePasswordDTO, "test@test.com", "access-token"));
+        verify(applicationEventPublisher, times(1)).publishEvent(any(SecurityEvent.class));
+        verify(userRepository, never()).save(any(User.class));
+
+
+    }
+
+    @Test
+    void changePassword_shouldPublishEvent_WhenPasswordMatch() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(jwtService.extractSessionId("access-token")).thenReturn("session-id");
+        when(passwordEncoder.matches(any(), any())).thenReturn(true);
+        when(refreshTokenRepository.revokeAllExceptCurrent(any(), any())).thenReturn(2);
+        ChangePasswordDTO changePasswordDTO = new ChangePasswordDTO("oldPassword", "newPassword");
+        loginRegisterService.changePassword(changePasswordDTO, "test@test.com", "access-token");
+        verify(applicationEventPublisher, times(1)).publishEvent(any(SecurityEvent.class));
+
+    }
+
+    @Test
+    void changePassword_shouldSaveNewPassword_WhenPasswordMatch() {
+        when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
+        when(jwtService.extractSessionId("access-token")).thenReturn("session-id");
+        when(passwordEncoder.matches(any(), any())).thenReturn(true);
+        when(refreshTokenRepository.revokeAllExceptCurrent(any(), any())).thenReturn(2);
+        ChangePasswordDTO changePasswordDTO = new ChangePasswordDTO("oldPassword", "newPassword");
+        loginRegisterService.changePassword(changePasswordDTO, "test@test.com", "access-token");
+        verify(applicationEventPublisher, times(1)).publishEvent(any(SecurityEvent.class));
+        verify(userRepository, times(1)).save(any(User.class));
+
+    }
+
+
+    //close account tests
     @Test
     void closeAccount_shouldThrowException_WhenUserNotFound() {
         when(userRepository.findByMail("test@test.com")).thenReturn(Optional.empty());

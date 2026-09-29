@@ -17,6 +17,8 @@ public class RefreshToken extends Item {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     @Column
+    private UUID sessionId;
+    @Column
     private String tokenHashed;
     @Column
     private String email;

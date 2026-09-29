@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
@@ -23,7 +24,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Query("UPDATE RefreshToken r " +
             "set r.revoked = true where " +
             "r.email = :email and r.revoked=false")
-    void revokeAllForUser(@Param(value = "email") String email);
+    Integer revokeAllForUser(@Param(value = "email") String email);
 
     Optional<RefreshToken> findRefreshTokenByTokenHashed(String hashedToken);
 
@@ -31,4 +32,15 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     List<RefreshToken> findRefreshTokenByEmail(String email);
 
+    @Modifying
+    @Query("UPDATE RefreshToken r " +
+            "set r.revoked = true where " +
+            "r.email = :email and r.sessionId = :sessionId and r.revoked=false")
+    Integer revokeCurrentSession(@Param(value = "email") String mail, @Param(value = "sessionId") UUID sessionId);
+
+    @Modifying
+    @Query("UPDATE RefreshToken r " +
+            "set r.revoked = true where " +
+            "r.sessionId != :sessionId and r.email = :email and r.revoked=false")
+    Integer revokeAllExceptCurrent(@Param(value = "email") String email, @Param(value = "sessionId") UUID sessionId);
 }
