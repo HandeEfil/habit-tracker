@@ -1,5 +1,6 @@
 package com.handegunaydin.habit_tracker.entity;
 
+import com.handegunaydin.habit_tracker.enums.NotificationChannelType;
 import com.handegunaydin.habit_tracker.enums.Role;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -32,9 +33,12 @@ public class User extends Item {
 
     @Column
     private LocalDate birthDate;
+    @ElementCollection
+    @Enumerated(EnumType.STRING)
+    private List<NotificationChannelType> allowedChannels;
 
     @Column
-    private boolean enabled =true;
+    private boolean enabled = true;
 
     @ElementCollection
     @Enumerated(EnumType.STRING)

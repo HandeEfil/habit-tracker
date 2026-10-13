@@ -2,6 +2,8 @@ package com.handegunaydin.habit_tracker.service.impl;
 
 import com.handegunaydin.habit_tracker.dto.*;
 import com.handegunaydin.habit_tracker.entity.User;
+import com.handegunaydin.habit_tracker.enums.NotificationChannelType;
+import com.handegunaydin.habit_tracker.enums.NotificationType;
 import com.handegunaydin.habit_tracker.exception.EmailAlreadyExistsException;
 import com.handegunaydin.habit_tracker.exception.UserBlockedException;
 import com.handegunaydin.habit_tracker.jwt.JwtService;
@@ -9,6 +11,7 @@ import com.handegunaydin.habit_tracker.mapper.UserMapper;
 import com.handegunaydin.habit_tracker.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.repository.UserRepository;
 import com.handegunaydin.habit_tracker.service.AuthService;
+import com.handegunaydin.habit_tracker.service.ChannelDistributorEventProducer;
 import com.handegunaydin.habit_tracker.service.LoginAttemptService;
 import com.handegunaydin.habit_tracker.service.RedisTokenService;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,6 +57,8 @@ public class DefaultLoginRegisterServiceTest {
     private RedisTokenService redisTokenService;
     @Mock
     ApplicationEventPublisher applicationEventPublisher;
+    @Mock
+    ChannelDistributorEventProducer channelDistributorEventProducer;
 
     @InjectMocks
     private DefaultLoginRegisterService loginRegisterService;
@@ -63,7 +69,7 @@ public class DefaultLoginRegisterServiceTest {
         UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
                 "Test123.",
                 "test@test.com",
-                "5555555555", LocalDate.now().minusYears(18)
+                "5555555555", List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), LocalDate.now().minusYears(18)
         );
         when(userRepository.existsByMail("test@test.com")).thenReturn(true);
 
@@ -76,7 +82,7 @@ public class DefaultLoginRegisterServiceTest {
         UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
                 "Test123.",
                 "test@test.com",
-                "5555555555", LocalDate.now().minusYears(18)
+                "5555555555", List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), LocalDate.now().minusYears(18)
         );
         when(userRepository.existsByMail("test@test.com")).thenReturn(false);
         when(passwordEncoder.encode("Test123.")).thenReturn("hashed_pass");
@@ -95,11 +101,36 @@ public class DefaultLoginRegisterServiceTest {
     }
 
     @Test
+    void shouldPublishWelcomeNotificationEvent_whenUserRegistrationIsSuccessful() {
+        UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
+                "Test123.",
+                "test@test.com",
+                "5555555555", List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), LocalDate.now().minusYears(18)
+        );
+        when(userRepository.existsByMail("test@test.com")).thenReturn(false);
+        when(passwordEncoder.encode("Test123.")).thenReturn("hashed_pass");
+        User savedUser = new User();
+        savedUser.setMail("test@test.com");
+        when(userMapper.toEntity(userRegisterDTO)).thenReturn(savedUser);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(userMapper.toResponse(any(User.class))).thenReturn(new UserRegisterResponseDTO("Test",
+                "test@test.com",
+                "5555555555", LocalDate.now().minusYears(18)));
+        ArgumentCaptor<ChannelDistributorDomainEvent> captor = ArgumentCaptor.forClass(ChannelDistributorDomainEvent.class);
+        loginRegisterService.register(userRegisterDTO);
+
+        verify(channelDistributorEventProducer).publishChannelDistributorEvent(captor.capture());
+        ChannelDistributorDomainEvent value = captor.getValue();
+        assertEquals(NotificationType.WELCOME, value.getEventNotificationType());
+    }
+
+    @Test
     void shouldNotCall_whenEmailIsNotUnique() {
         UserRegisterDTO userRegisterDTO = new UserRegisterDTO("Test",
                 "Test123.",
                 "test@test.com",
-                "5555555555", LocalDate.now().minusYears(18)
+                "5555555555", List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL),
+                LocalDate.now().minusYears(18)
         );
         when(userRepository.existsByMail("test@test.com")).thenReturn(true);
         assertThrows(EmailAlreadyExistsException.class, () -> loginRegisterService.register(userRegisterDTO));
@@ -163,6 +194,7 @@ public class DefaultLoginRegisterServiceTest {
     void shouldProvideParameter_whenUserLogout() {
         UUID sessionId = UUID.randomUUID();
         when(jwtService.extractSessionId(any())).thenReturn(sessionId.toString());
+        when(refreshTokenRepository.revokeCurrentSession(any(),any())).thenReturn(1);
         doNothing().when(redisTokenService).disableAccessToken("access-token");
         loginRegisterService.logout("test@test.com", "access-token");
         verify(refreshTokenRepository, times(1)).revokeCurrentSession("test@test.com", sessionId);
@@ -174,7 +206,7 @@ public class DefaultLoginRegisterServiceTest {
 
     @Test
     void shouldProvideParameter_whenUserLogoutAllDevices() {
-        doNothing().when(authService).revokeAllForUser("test@test.com");
+        when(authService.revokeAllForUser("test@test.com")).thenReturn(1);
         doNothing().when(redisTokenService).disableAllAccessTokensForUser("test@test.com");
         loginRegisterService.logoutAllDevices("test@test.com");
         verify(authService, times(1)).revokeAllForUser("test@test.com");
@@ -207,7 +239,7 @@ public class DefaultLoginRegisterServiceTest {
     @Test
     void changePassword_shouldPublishEvent_WhenPasswordMatch() {
         when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
-        when(jwtService.extractSessionId("access-token")).thenReturn("session-id");
+        when(jwtService.extractSessionId("access-token")).thenReturn(String.valueOf(UUID.randomUUID()));
         when(passwordEncoder.matches(any(), any())).thenReturn(true);
         when(refreshTokenRepository.revokeAllExceptCurrent(any(), any())).thenReturn(2);
         ChangePasswordDTO changePasswordDTO = new ChangePasswordDTO("oldPassword", "newPassword");
@@ -219,7 +251,7 @@ public class DefaultLoginRegisterServiceTest {
     @Test
     void changePassword_shouldSaveNewPassword_WhenPasswordMatch() {
         when(userRepository.findByMail("test@test.com")).thenReturn(Optional.of(new User()));
-        when(jwtService.extractSessionId("access-token")).thenReturn("session-id");
+        when(jwtService.extractSessionId("access-token")).thenReturn(String.valueOf(UUID.randomUUID()));
         when(passwordEncoder.matches(any(), any())).thenReturn(true);
         when(refreshTokenRepository.revokeAllExceptCurrent(any(), any())).thenReturn(2);
         ChangePasswordDTO changePasswordDTO = new ChangePasswordDTO("oldPassword", "newPassword");

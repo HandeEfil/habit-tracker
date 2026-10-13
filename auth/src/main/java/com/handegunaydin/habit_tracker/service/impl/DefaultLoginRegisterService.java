@@ -3,6 +3,7 @@ package com.handegunaydin.habit_tracker.service.impl;
 
 import com.handegunaydin.habit_tracker.dto.*;
 import com.handegunaydin.habit_tracker.entity.User;
+import com.handegunaydin.habit_tracker.enums.NotificationType;
 import com.handegunaydin.habit_tracker.enums.SecurityEventType;
 import com.handegunaydin.habit_tracker.exception.EmailAlreadyExistsException;
 import com.handegunaydin.habit_tracker.exception.UserBlockedException;
@@ -11,10 +12,7 @@ import com.handegunaydin.habit_tracker.jwt.JwtService;
 import com.handegunaydin.habit_tracker.mapper.UserMapper;
 import com.handegunaydin.habit_tracker.repository.RefreshTokenRepository;
 import com.handegunaydin.habit_tracker.repository.UserRepository;
-import com.handegunaydin.habit_tracker.service.AuthService;
-import com.handegunaydin.habit_tracker.service.LoginAttemptService;
-import com.handegunaydin.habit_tracker.service.LoginRegisterService;
-import com.handegunaydin.habit_tracker.service.RedisTokenService;
+import com.handegunaydin.habit_tracker.service.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +39,7 @@ public class DefaultLoginRegisterService implements LoginRegisterService {
     private final RedisTokenService redisTokenService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final ChannelDistributorEventProducer channelDistributorEventProducer;
 
 
     @Override
@@ -51,6 +50,11 @@ public class DefaultLoginRegisterService implements LoginRegisterService {
         User userModel = userMapper.toEntity(registerRequest);
         userModel.setEncodedPassword(passwordEncoder.encode(registerRequest.password()));
         userRepository.save(userModel);
+        channelDistributorEventProducer.publishChannelDistributorEvent(new ChannelDistributorDomainEvent(registerRequest.allowedChannels(),
+                NotificationType.WELCOME,
+                new UserRegisterEvent(registerRequest.name(),
+                        registerRequest.mail(),
+                        NotificationType.WELCOME)));
         return userMapper.toResponse(userModel);
     }
 

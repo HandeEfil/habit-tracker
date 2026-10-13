@@ -16,7 +16,7 @@ public class MongoIndexConfig {
     @PostConstruct
     public void createIndexes() {
         Index index = new Index()
-                .on("createdAt", Sort.Direction.ASC).expire(60);
+                .on("createdAt", Sort.Direction.ASC).expire(60000);
 
         mongoTemplate.indexOps(EventLog.class).createIndex(index);
 
