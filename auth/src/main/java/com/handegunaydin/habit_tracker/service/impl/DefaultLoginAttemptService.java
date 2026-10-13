@@ -1,8 +1,12 @@
 package com.handegunaydin.habit_tracker.service.impl;
 
+import com.handegunaydin.habit_tracker.dto.ChannelDistributorDomainEvent;
+import com.handegunaydin.habit_tracker.dto.UserFailedLoginAttemptEvent;
 import com.handegunaydin.habit_tracker.entity.User;
+import com.handegunaydin.habit_tracker.enums.NotificationType;
 import com.handegunaydin.habit_tracker.enums.SecurityEventType;
 import com.handegunaydin.habit_tracker.factory.SecurityEventFactory;
+import com.handegunaydin.habit_tracker.service.ChannelDistributorEventProducer;
 import com.handegunaydin.habit_tracker.service.LoginAttemptService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +26,7 @@ import java.util.Map;
 public class DefaultLoginAttemptService implements LoginAttemptService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final ChannelDistributorEventProducer channelDistributorEventProducer;
 
     private final static String ATTEMPT_COUNT_KEY = "login-attempt";
     private final static String ACCOUNT_LOCKED_KEY = "lock-account";
@@ -48,7 +53,11 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
             }
             if (maxAttempt <= attempt) {
                 logUserLock(user);
-                // TODO: Trigger kafka event to inform user
+                channelDistributorEventProducer.publishChannelDistributorEvent(new ChannelDistributorDomainEvent(user.getAllowedChannels(),
+                        NotificationType.FAILED_LOGIN,
+                        new UserFailedLoginAttemptEvent(user.getName(),
+                                user.getMail(),
+                                NotificationType.FAILED_LOGIN)));
                 registerLockForAccount(user.getMail());
             }
             return attempt;

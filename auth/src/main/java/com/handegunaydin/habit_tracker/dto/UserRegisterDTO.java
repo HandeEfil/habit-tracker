@@ -1,9 +1,11 @@
 package com.handegunaydin.habit_tracker.dto;
 
 import com.handegunaydin.habit_tracker.annotation.MinimumAge;
+import com.handegunaydin.habit_tracker.enums.NotificationChannelType;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record UserRegisterDTO(
         @NotBlank(message = "name.blank.error")
@@ -27,9 +29,12 @@ public record UserRegisterDTO(
         )
         String mobileNumber,
 
-        @NotNull(message =  "birthDate.blank.error")
+
+        List<NotificationChannelType> allowedChannels,
+
+        @NotNull(message = "birthDate.blank.error")
         @Past(message = "{birthDate.past.error}")
         @MinimumAge
         LocalDate birthDate
-        ) {
+) {
 }
