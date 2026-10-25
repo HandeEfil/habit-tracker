@@ -54,7 +54,8 @@ public class DefaultLoginRegisterService implements LoginRegisterService {
                 NotificationType.WELCOME,
                 new UserRegisterEvent(registerRequest.name(),
                         registerRequest.mail(),
-                        NotificationType.WELCOME)));
+                        NotificationType.WELCOME, UUID.randomUUID()),
+                UUID.randomUUID()));
         return userMapper.toResponse(userModel);
     }
 

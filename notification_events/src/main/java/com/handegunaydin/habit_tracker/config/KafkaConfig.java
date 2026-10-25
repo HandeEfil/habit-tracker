@@ -1,8 +1,11 @@
 package com.handegunaydin.habit_tracker.config;
 
 import com.handegunaydin.habit_tracker.dto.DomainEvent;
+import com.handegunaydin.habit_tracker.interceptor.DlqSuccessInterceptor;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,19 +14,26 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 @EnableKafka
+@RequiredArgsConstructor
 public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String server;
     @Value("${spring.kafka.trusted.package}")
     private String trustedPath;
+    private final DlqSuccessInterceptor dlqSuccessInterceptor;
+    @Value("${kafka.message.dlq.template}")
+    private String dlq_template;
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
@@ -60,12 +70,22 @@ public class KafkaConfig {
 
     }
 
-
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, DomainEvent> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, DomainEvent> kafkaListenerContainerFactory(KafkaTemplate<String, DomainEvent> kafkaTemplate) {
         ConcurrentKafkaListenerContainerFactory<String, DomainEvent> factory = new ConcurrentKafkaListenerContainerFactory<String, DomainEvent>();
         factory.setConsumerFactory(consumerFactory());
+        factory.setRecordInterceptor(dlqSuccessInterceptor);
+        factory.setCommonErrorHandler(errorHandler(kafkaTemplate));
         return factory;
     }
 
+    @Bean
+    public DefaultErrorHandler errorHandler(KafkaTemplate<String, DomainEvent> kafkaTemplate) {
+        DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
+                ((consumerRecord, e) ->
+                        new TopicPartition(dlq_template, consumerRecord.partition())));
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(deadLetterPublishingRecoverer, new FixedBackOff(1000L, 2L));
+        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
+        return errorHandler;
+    }
 }

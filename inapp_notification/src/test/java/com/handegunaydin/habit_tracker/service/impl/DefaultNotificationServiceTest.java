@@ -42,7 +42,7 @@ public class DefaultNotificationServiceTest {
     @Test
     void createNotification_shouldMapResolveMessageAndSave() {
         ArgumentCaptor<FailedLoginEventNotification> captor = ArgumentCaptor.forClass(FailedLoginEventNotification.class);
-        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.FAILED_LOGIN);
+        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.FAILED_LOGIN, UUID.randomUUID());
         FailedLoginEventNotification notification = new FailedLoginEventNotification();
         when(notificationMapper.fromEvent(userFailedLoginAttemptEvent)).thenReturn(notification);
         when(notificationMessageResolver.resolveMessage(userFailedLoginAttemptEvent)).thenReturn("resolved-message");
@@ -52,7 +52,7 @@ public class DefaultNotificationServiceTest {
 
     @Test
     void createNotification_ifMessageResolverThrows_shouldNotSave() {//log with audit.
-        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.FAILED_LOGIN);
+        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.FAILED_LOGIN, UUID.randomUUID());
         FailedLoginEventNotification notification = new FailedLoginEventNotification();
         when(notificationMapper.fromEvent(userFailedLoginAttemptEvent)).thenReturn(notification);
         when(notificationMessageResolver.resolveMessage(userFailedLoginAttemptEvent)).thenThrow(new NoSuchMessageException("no such element"));

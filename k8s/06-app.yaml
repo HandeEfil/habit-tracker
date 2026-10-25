@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: habit-tracker
+  namespace: habit-tracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: habit-tracker
+  template:
+    metadata:
+      labels:
+        app: habit-tracker
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: habit-tracker
+          image: habit-tracker:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/habitdb
+            - name: DB_USERNAME
+              value: postgres
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DB_URL_MONGO
+              value: mongodb://mongo:27017/habit_tracker
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: habit-tracker-secret
+                  key: JWT_SECRET
+            - name: EMAIL_SENDER
+              valueFrom:
+                secretKeyRef:
+                  name: habit-tracker-secret
+                  key: EMAIL_SENDER
+            - name: EMAIL_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: habit-tracker-secret
+                  key: EMAIL_PASS
+            # Boş veritabanında tablolar yoksa validate hata verir, ilk çalıştırma için
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: update
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              memory: "1Gi"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: habit-tracker
+  namespace: habit-tracker
+spec:
+  type: LoadBalancer
+  selector:
+    app: habit-tracker
+  ports:
+    - port: 8080
+      targetPort: 8080

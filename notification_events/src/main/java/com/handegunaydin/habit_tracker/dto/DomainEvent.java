@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.handegunaydin.habit_tracker.enums.NotificationType;
 
+import java.util.UUID;
+
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
@@ -22,5 +24,7 @@ import com.handegunaydin.habit_tracker.enums.NotificationType;
 public interface DomainEvent {
 
     NotificationType getEventNotificationType();
+
+    UUID getUUID();
 
 }

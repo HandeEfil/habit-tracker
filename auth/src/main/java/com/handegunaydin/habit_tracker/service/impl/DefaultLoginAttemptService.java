@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -57,7 +58,9 @@ public class DefaultLoginAttemptService implements LoginAttemptService {
                         NotificationType.FAILED_LOGIN,
                         new UserFailedLoginAttemptEvent(user.getName(),
                                 user.getMail(),
-                                NotificationType.FAILED_LOGIN)));
+                                NotificationType.FAILED_LOGIN,
+                                UUID.randomUUID()),
+                        UUID.randomUUID()));
                 registerLockForAccount(user.getMail());
             }
             return attempt;

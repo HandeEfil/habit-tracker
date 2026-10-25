@@ -17,6 +17,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +40,7 @@ public class ChannelDistributorEventProducerTest {
 
     @Test
     void publishChannelDistributorEvent_shouldSendEventToKafka() {
-        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent<>(List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), NotificationType.FAILED_LOGIN, null);
+        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent<>(List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), NotificationType.FAILED_LOGIN, null, UUID.randomUUID());
         channelDistributorEventProducer.publishChannelDistributorEvent(event);
         verify(template, times(1)).send(any(), eq(event));
 
@@ -47,7 +48,7 @@ public class ChannelDistributorEventProducerTest {
 
     @Test
     void publishChannelDistributorEvent_shouldUseConfiguredTopic() {
-        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent<>(List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), NotificationType.FAILED_LOGIN, null);
+        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent<>(List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), NotificationType.FAILED_LOGIN, null, UUID.randomUUID());
         channelDistributorEventProducer.publishChannelDistributorEvent(event);
         verify(template, times(1)).send(topic, event);
 
@@ -56,7 +57,7 @@ public class ChannelDistributorEventProducerTest {
     @Test
     void publishChannelDistributorEvent_shouldLogErrorWhenPublishingEventFails() {
         LogCaptor logCaptor = LogCaptor.forClass(ChannelDistributorEventProducer.class);
-        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent<>(List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), NotificationType.FAILED_LOGIN, null);
+        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent<>(List.of(NotificationChannelType.INAPP, NotificationChannelType.EMAIL), NotificationType.FAILED_LOGIN, null, UUID.randomUUID());
         CompletableFuture<SendResult<String, DomainEvent>> future = new CompletableFuture<>();
         when(template.send(any(), any())).thenReturn(future);
         channelDistributorEventProducer.publishChannelDistributorEvent(event);

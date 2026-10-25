@@ -16,6 +16,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,7 +38,7 @@ public class ChannelDistributorEventListenerTest {
     void consumeChannelsToBeInform_ChannelsShouldBeSentToRepository() {
         ArgumentCaptor<List<NotificationChannelType>> captorChannels = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<NotificationType> captorNotification = ArgumentCaptor.forClass(NotificationType.class);
-        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent(List.of(NotificationChannelType.EMAIL, NotificationChannelType.INAPP), NotificationType.WELCOME, null);
+        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent(List.of(NotificationChannelType.EMAIL, NotificationChannelType.INAPP), NotificationType.WELCOME, null, UUID.randomUUID());
         channelDistributorEventListener.consumeChannelsToBeInform(event);
         verify(notificationChannelRepository).findNotificationChannelByEventTypeAndAllowedChannel(captorNotification.capture(), captorChannels.capture());
         assertEquals(event.getEventNotificationType(), captorNotification.getValue());
@@ -46,7 +47,7 @@ public class ChannelDistributorEventListenerTest {
 
     @Test
     void consumeChannelsToBeInform_whenChannelIsEmpty_EventShouldNotTrigger() {
-        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent(List.of(), NotificationType.WELCOME, null);
+        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent(List.of(), NotificationType.WELCOME, null, UUID.randomUUID());
         when(notificationChannelRepository.findNotificationChannelByEventTypeAndAllowedChannel(any(), any())).thenReturn(List.of());
         channelDistributorEventListener.consumeChannelsToBeInform(event);
         verify(template, never()).send(any(), any());
@@ -55,7 +56,7 @@ public class ChannelDistributorEventListenerTest {
 
     @Test
     void consumeChannelsToBeInform_whenChannelIsNotEmpty_EventShouldTrigger() {
-        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent(List.of(NotificationChannelType.EMAIL, NotificationChannelType.INAPP), NotificationType.WELCOME, new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.WELCOME));
+        ChannelDistributorDomainEvent event = new ChannelDistributorDomainEvent(List.of(NotificationChannelType.EMAIL, NotificationChannelType.INAPP), NotificationType.WELCOME, new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.WELCOME, UUID.randomUUID()), UUID.randomUUID());
         ArgumentCaptor<UserFailedLoginAttemptEvent> captorDataInapp = ArgumentCaptor.forClass(UserFailedLoginAttemptEvent.class);
         ArgumentCaptor<UserFailedLoginAttemptEvent> captorDataEmail = ArgumentCaptor.forClass(UserFailedLoginAttemptEvent.class);
         when(notificationChannelRepository.findNotificationChannelByEventTypeAndAllowedChannel(any(), any())).thenReturn(List.of(NotificationChannelType.EMAIL, NotificationChannelType.INAPP));

@@ -7,6 +7,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.thymeleaf.context.Context;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
@@ -21,7 +23,7 @@ public class RegisterMailContextTest {
 
     @Test
     void resolve_ShouldSetToAndUsernameVariables() {
-        UserRegisterEvent event = new UserRegisterEvent("test", "test@test.com", NotificationType.WELCOME);
+        UserRegisterEvent event = new UserRegisterEvent("test", "test@test.com", NotificationType.WELCOME, UUID.randomUUID());
         Context registerContext = registerMailContext.resolve(event);
         assertEquals("test@test.com", registerContext.getVariable("to"));
         assertEquals("test", registerContext.getVariable("username"));
