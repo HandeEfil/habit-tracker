@@ -17,6 +17,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -60,7 +61,7 @@ public class DefaultEmailResolverTest {
 
     @Test
     void resolve_shouldReturnEmailMessageWithCorrectFromToSubjectAndBody() {
-        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.FAILED_LOGIN);
+        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("Test", "test@test.com", NotificationType.FAILED_LOGIN, UUID.randomUUID());
         when(emailContextFactory.getEmailContexts(userFailedLoginAttemptEvent)).thenReturn(emailContext);
         Context value = new Context();
         when(emailContext.resolveContext(userFailedLoginAttemptEvent)).thenReturn(value);

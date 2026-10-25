@@ -10,6 +10,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 import org.springframework.context.NoSuchMessageException;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,7 +27,7 @@ public class NotificationMessageResolverTest {
 
     @Test
     void resolveMessage_ShouldReturnMessageFromMessageSource() {
-        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("test", "test@test.com", NotificationType.FAILED_LOGIN);
+        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("test", "test@test.com", NotificationType.FAILED_LOGIN, UUID.randomUUID());
         notificationMessageResolver.resolveMessage(userFailedLoginAttemptEvent);
         verify(messageSource).getMessage("notification.security_alert.message", null, null);
 
@@ -33,7 +35,7 @@ public class NotificationMessageResolverTest {
 
     @Test
     void resolveMessage_ShouldThrowNoSuchMessageException_WhenKeyIsMissing() {
-        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("test", "test@test.com", NotificationType.FAILED_LOGIN);
+        UserFailedLoginAttemptEvent userFailedLoginAttemptEvent = new UserFailedLoginAttemptEvent("test", "test@test.com", NotificationType.FAILED_LOGIN, UUID.randomUUID());
         when(messageSource.getMessage("notification.security_alert.message", null, null)).thenThrow(new NoSuchMessageException("error"));
         assertThrows(NoSuchMessageException.class, () -> notificationMessageResolver.resolveMessage(userFailedLoginAttemptEvent));
 
