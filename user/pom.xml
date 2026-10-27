@@ -29,11 +29,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.handegunaydin</groupId>
-            <artifactId>notification</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
@@ -41,6 +36,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.handegunaydin</groupId>
+            <artifactId>notification_events</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

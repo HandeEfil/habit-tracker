@@ -25,6 +25,7 @@ metadata:
   name: redis
   namespace: habit-tracker
 spec:
+  type: LoadBalancer
   selector:
     app: redis
   ports:

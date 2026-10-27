@@ -30,6 +30,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
@@ -81,10 +82,20 @@ public class AuthControllerTest {
     private int maxFailedLoginAttempts;
 
 
+    @Container
+    static KafkaContainer kafka =
+            new KafkaContainer(
+                    DockerImageName.parse("apache/kafka:3.8.0")
+            );
+
     @DynamicPropertySource
     static void redisProps(DynamicPropertyRegistry registry) {
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+        registry.add(
+                "spring.kafka.bootstrap-servers",
+                kafka::getBootstrapServers
+        );
     }
 
     @BeforeEach

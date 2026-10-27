@@ -1,7 +1,5 @@
 package com.handegunaydin.habit_tracker.controller;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.handegunaydin.habit_tracker.dto.NotificationDTO;
 import com.handegunaydin.habit_tracker.entity.Notification;
 import com.handegunaydin.habit_tracker.entity.RegisterEventNotification;
@@ -18,6 +16,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -26,6 +26,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import org.testcontainers.kafka.KafkaContainer;
 
 import java.util.List;
 import java.util.UUID;
@@ -49,6 +52,21 @@ public class NotificationControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+
+
+    @Container
+    static KafkaContainer kafka =
+            new KafkaContainer(
+                    DockerImageName.parse("apache/kafka:3.8.0")
+            );
+
+    @DynamicPropertySource
+    static void kafkaProperties(DynamicPropertyRegistry registry) {
+        registry.add(
+                "spring.kafka.bootstrap-servers",
+                kafka::getBootstrapServers
+        );
+    }
     @Container
     @ServiceConnection
     static MongoDBContainer mongo =
@@ -68,6 +86,7 @@ public class NotificationControllerTest {
         notificationRepository.deleteAll();
         notificationRepository.save(getEntity("test@test.com",testUID));
         notificationRepository.save(getEntity("test1@test.com",test1UID));
+
     }
 
     @Test

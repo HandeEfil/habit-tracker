@@ -37,6 +37,7 @@ metadata:
   name: mongo
   namespace: habit-tracker
 spec:
+  type: LoadBalancer
   selector:
     app: mongo
   ports:
