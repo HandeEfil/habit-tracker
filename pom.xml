@@ -28,6 +28,7 @@
         <module>app</module>
         <module>notification</module>
         <module>audit</module>
+        <module>gateway</module>
         <module>notification_events</module>
         <module>inapp_notification</module>
     </modules>

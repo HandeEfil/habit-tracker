@@ -49,6 +49,7 @@ metadata:
   name: postgres
   namespace: habit-tracker
 spec:
+  type: LoadBalancer
   selector:
     app: postgres
   ports:

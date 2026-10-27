@@ -1,18 +1,11 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY pom.xml .
-COPY app ./app
-COPY auth ./auth
-COPY common ./common
-COPY notification ./notification
-COPY notification_events ./notification_events
-COPY inapp_notification ./inapp_notification
-COPY user ./user
-COPY audit ./audit
-RUN mvn clean package -DskipTests
+COPY . .
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -pl app -am -DskipTests clean package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/app/target/*.jar app.jar
-EXPOSE 8080
+EXPOSE 8083
 ENTRYPOINT ["java", "-jar", "app.jar"]
