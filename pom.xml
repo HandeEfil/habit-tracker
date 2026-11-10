@@ -26,11 +26,11 @@
         <module>user</module>
         <module>common</module>
         <module>app</module>
-        <module>notification</module>
+        <module>notification-service/notification</module>
         <module>audit</module>
         <module>gateway</module>
-        <module>notification_events</module>
-        <module>inapp_notification</module>
+        <module>notification-service/notification_events</module>
+        <module>notification-service/inapp_notification</module>
     </modules>
     <scm>
         <connection/>
@@ -52,12 +52,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <dependency>
-                <groupId>org.mapstruct</groupId>
-                <artifactId>mapstruct-processor</artifactId>
-                <version>1.6.3</version>
-                <scope>provided</scope>
-            </dependency>
             <dependency>
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct-processor</artifactId>

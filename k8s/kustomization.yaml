@@ -1,0 +1,14 @@
+namespace: habit-tracker
+resources:
+  - 01-namespace.yaml
+  - 02-postgres.yaml
+  - 03-mongo.yaml
+  - 04-redis.yaml
+  - 05-kafka.yaml
+  - 06-app.yaml
+  - 07-kafka-ui.yaml
+  - 08-notification.yaml
+secretGenerator:
+  - name: postgres-secret
+    envs:
+      - .env
