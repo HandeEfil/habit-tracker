@@ -86,9 +86,8 @@ public class DefaultTokenGeneratorTest {
         Instant before = Instant.now().plusMillis(900000L);
         RefreshToken refreshToken = tokenGenerator.populateHashedToken("test@test.com", tokenHash, UUID.randomUUID());
         Instant after = Instant.now().plusMillis(900000L);
-        assertTrue(before.isBefore(refreshToken.getExpiresAt()) || before.equals(refreshToken.getExpiresAt()));
-        assertTrue(after.isAfter(refreshToken.getExpiresAt()) || before.equals(refreshToken.getExpiresAt()));
-
+        assertFalse(before.isAfter(refreshToken.getExpiresAt()));   // before <= expiresAt
+        assertFalse(refreshToken.getExpiresAt().isAfter(after));    // expiresAt <= after
     }
 
 

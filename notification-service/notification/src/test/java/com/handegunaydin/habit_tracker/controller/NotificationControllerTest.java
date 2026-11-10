@@ -21,6 +21,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -30,6 +31,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import org.testcontainers.kafka.KafkaContainer;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,7 +60,7 @@ public class NotificationControllerTest {
     static KafkaContainer kafka =
             new KafkaContainer(
                     DockerImageName.parse("apache/kafka:3.8.0")
-            );
+            ).withStartupTimeout(Duration.ofMinutes(3));
 
     @DynamicPropertySource
     static void kafkaProperties(DynamicPropertyRegistry registry) {
@@ -90,9 +92,8 @@ public class NotificationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "test@test.com",roles = "CUSTOMER")
     void getNotifications_shouldReturn200AndNotificationsForAuthenticatedCustomer() throws Exception {
-        MvcResult mvcResult = getNotifications().andExpect(status().isOk()).andReturn();
+        MvcResult mvcResult = getNotifications("test@test.com","CUSTOMER").andExpect(status().isOk()).andReturn();
         ObjectMapper objectMapper = new ObjectMapper();
         List<NotificationDTO> notificationDTOList = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), new TypeReference<List<NotificationDTO>>(){});
         assertEquals(1, notificationDTOList.size());
@@ -100,9 +101,8 @@ public class NotificationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "test123@test.com",roles = "CUSTOMER")
     void getNotifications_shouldReturnEmptyListWhenUserHasNoNotifications() throws Exception {
-        MvcResult mvcResult = getNotifications().andExpect(status().isOk()).andReturn();
+        MvcResult mvcResult = getNotifications( "test123@test.com","CUSTOMER" ).andExpect(status().isOk()).andReturn();
         ObjectMapper objectMapper = new ObjectMapper();
         List<NotificationDTO> notificationDTOList = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), new TypeReference<List<NotificationDTO>>(){});
         assertEquals(0, notificationDTOList.size());
@@ -110,20 +110,18 @@ public class NotificationControllerTest {
 
     @Test
     void getNotifications_ShouldReturn401_WhenNotAuthenticated() throws Exception {
-        getNotifications().andExpect(status().isUnauthorized());
+        getNotifications(null, null).andExpect(status().isUnauthorized());
     }
 
     @Test
-    @WithMockUser(username = "test123@test.com",roles = "ADMIN")
     void getNotifications_ShouldReturn403_WhenUserIsNotCustomer() throws Exception {
-        getNotifications().andExpect(status().isForbidden());
+        getNotifications("test123@test.com", "ADMIN" ).andExpect(status().isForbidden());
 
     }
 
     @Test
-    @WithMockUser(username = "test@test.com",roles = "CUSTOMER")
     void markAsRead_ShouldReturn200_WhenSuccessful() throws Exception {
-        readNotification(testUID.toString()).andExpect(status().isOk());
+        readNotification(testUID.toString(),"test@test.com", "CUSTOMER").andExpect(status().isOk());
         List<Notification> byRecipient = notificationRepository.findByRecipient("test@test.com");
         assertEquals(1, byRecipient.size());
         assertTrue(byRecipient.get(0).isRead());
@@ -131,9 +129,8 @@ public class NotificationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "test@test.com",roles = "CUSTOMER")
     void markAsRead_shouldNotMarkAnotherUsersNotificationAsRead() throws Exception {
-        readNotification(test1UID.toString()).andExpect(status().isOk());
+        readNotification(test1UID.toString(), "test@test.com",  "CUSTOMER").andExpect(status().isOk());
         List<Notification> byRecipient = notificationRepository.findByRecipient("test1@test.com");
         assertEquals(1, byRecipient.size());
         assertFalse(byRecipient.getFirst().isRead());
@@ -141,26 +138,32 @@ public class NotificationControllerTest {
 
     @Test
     void markAsRead_shouldReturn401WhenUserIsUnauthenticated() throws Exception {
-        readNotification(test1UID.toString()).andExpect(status().isUnauthorized());
+        readNotification(test1UID.toString(), null, null).andExpect(status().isUnauthorized());
 
     }
 
     @Test
     @WithMockUser(username = "test@test.com",roles = "ADMIN")
     void markAsRead_shouldReturn403WhenUserDoesNotHaveCustomerRole() throws Exception {
-        readNotification(test1UID.toString()).andExpect(status().isForbidden());
+        readNotification(test1UID.toString(), "test@test.com", "ADMIN").andExpect(status().isForbidden());
 
     }
 
-    private ResultActions getNotifications() throws Exception {
+    private ResultActions getNotifications(String id, String role) throws Exception {
 
-        return mockMvc.perform(get("/notifications")
+        MockHttpServletRequestBuilder req = get("/notifications");
+        if(id != null) req.header("X-User-Id", id);
+        if(role != null) req.header("X-User-Roles", role);
+        return mockMvc.perform(req
                 .contentType(MediaType.APPLICATION_JSON));
     }
 
-    private ResultActions readNotification(String id) throws Exception {
+    private ResultActions readNotification(String id, String userId, String roles) throws Exception {
 
-        return mockMvc.perform(patch("/notifications/{id}/read", id)
+        MockHttpServletRequestBuilder req = patch("/notifications/{id}/read", id);
+        if(userId != null) req.header("X-User-Id", userId);
+        if(roles != null) req.header("X-User-Roles", roles);
+        return mockMvc.perform(req
                 .contentType(MediaType.APPLICATION_JSON));
     }
 
